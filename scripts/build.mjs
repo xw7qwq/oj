@@ -1,6 +1,7 @@
-import { cp, mkdir, readFile, rm, stat } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { buildSummary } from './summary.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dataPath = path.join(root, 'public/data/dashboard.json');
@@ -21,4 +22,6 @@ await rm(path.join(root, 'dist'), { recursive: true, force: true });
 await mkdir(path.join(root, 'dist'), { recursive: true });
 await cp(path.join(root, 'public'), path.join(root, 'dist'), { recursive: true });
 await stat(path.join(root, 'dist/index.html'));
-console.log(`Built static site with ${data.accepted.length} AC submissions and ${data.problems.length} catalogued problems.`);
+const summary = buildSummary(data);
+await writeFile(path.join(root, 'dist/data/summary.json'), `${JSON.stringify(summary)}\n`);
+console.log(`Built static site with ${data.accepted.length} AC submissions and ${data.problems.length} catalogued problems; summary has ${summary.solved} solved problems.`);

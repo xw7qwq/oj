@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "OJFlare · Public snapshot API",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "description": "Read-only JSON hosted on GitHub Pages, schemaVersion=2. AtCoder, Codeforces, QOJ, and Nowcoder are enabled. Luogu is temporarily disabled, without requests, exports, or statistical contribution. Only contests with actual submissions are included. Total solved is the union of problem IDs in accepted and undatedSolved; the latter is currently empty. Nowcoder covers public coding practice only, with daily incremental collection and full checks every seven days, without guaranteed in-contest completeness. QOJ synchronizes with an authorized session. The public interface has no authentication, query filtering, pagination, or writes. HTTP 200 does not establish source freshness. This contract describes the current deployment; use the matching commit's contract for older snapshots.",
     "contact": {
       "name": "OJFlare repository",
@@ -46,6 +46,34 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Static resource not found. The hosting service supplies the response without a guaranteed JSON error structure."
+          },
+          "default": {
+            "description": "The hosting service supplies other HTTP errors. This project defines no common error body."
+          }
+        }
+      }
+    },
+    "/data/summary.json": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "operationId": "getSummary",
+        "summary": "Read the compact statistics used by the lucius7.dev panel",
+        "description": "About 20 KB, rebuilt with every deployment from the same dashboard snapshot. Days follow UTC+8 and `today` is the build date, so counts stay fixed until the next build.",
+        "responses": {
+          "200": {
+            "description": "Summary retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Summary"
                 }
               }
             }
@@ -547,6 +575,267 @@
         },
         "additionalProperties": true,
         "description": "Optional page summaries used by historical Luogu snapshots. Luogu is currently disabled; this field remains for compatibility."
+      },
+      "Summary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "generated_at",
+          "built_at",
+          "timezone",
+          "handle",
+          "today",
+          "solved",
+          "accepted",
+          "counts",
+          "streak",
+          "platforms",
+          "daily",
+          "monthly",
+          "recent"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Dashboard generatedAt: when the sources were last synchronized."
+          },
+          "built_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this summary was built."
+          },
+          "timezone": {
+            "type": "string",
+            "examples": [
+              "Asia/Taipei"
+            ]
+          },
+          "handle": {
+            "type": "string"
+          },
+          "today": {
+            "type": "string",
+            "format": "date",
+            "description": "Build date in UTC+8; later days are excluded."
+          },
+          "solved": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Distinct solved problems, including undated solves."
+          },
+          "accepted": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Accepted submissions, including repeats."
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "today",
+              "week",
+              "month",
+              "year"
+            ],
+            "description": "First ACs today, in the last 7 days, this month and this year.",
+            "properties": {
+              "today": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "week": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "month": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "year": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "streak": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "current",
+              "longest"
+            ],
+            "properties": {
+              "current": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "longest": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "platforms": {
+            "type": "object",
+            "description": "Keyed by platform id.",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "solved",
+                "accepted",
+                "rating",
+                "max_rating",
+                "rank",
+                "profile_url",
+                "last_success",
+                "coverage"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "solved": {
+                  "type": "integer"
+                },
+                "accepted": {
+                  "type": "integer"
+                },
+                "rating": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "max_rating": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "rank": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "profile_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uri"
+                },
+                "last_success": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "coverage": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "daily": {
+            "type": "object",
+            "description": "First ACs per UTC+8 day, only days with at least one.",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "monthly": {
+            "type": "object",
+            "description": "First ACs per month: total and per platform.",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "total"
+              ],
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "recent": {
+            "type": "array",
+            "maxItems": 30,
+            "description": "Latest accepted submissions, newest first.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "platform",
+                "problem_id",
+                "index",
+                "title",
+                "difficulty",
+                "problem_url",
+                "submission_url",
+                "accepted_at",
+                "first"
+              ],
+              "properties": {
+                "platform": {
+                  "$ref": "#/components/schemas/Platform"
+                },
+                "problem_id": {
+                  "$ref": "#/components/schemas/ProblemId"
+                },
+                "index": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "difficulty": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "problem_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uri"
+                },
+                "submission_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uri"
+                },
+                "accepted_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "first": {
+                  "type": "boolean",
+                  "description": "Whether this was the first AC of the problem."
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
