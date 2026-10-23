@@ -47,7 +47,7 @@ See [upstream data collection](docs/API.md#upstream-data-collection) for sources
 
 ## Quick start
 
-Requires **Git, Node.js 22+ (including npm), and Python 3.11+**. CI uses Node.js 22 and Python 3.12. No `npm install` or `pip install` step is needed.
+Requires **Git, Node.js 24+ (including npm), and Python 3.11+**. CI uses Node.js 24 from `.nvmrc` and Python 3.12. No `npm install` or `pip install` step is needed.
 
 ```sh
 git clone https://github.com/xw7qwq/ojflare.git

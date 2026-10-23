@@ -4,7 +4,7 @@ See the [organization contribution guide](https://github.com/xw7qwq/.github/blob
 
 ## Local validation
 
-Use Node.js 22+ and Python 3.11+. No third-party dependencies need to be installed:
+Use Node.js 24+ (the version in `.nvmrc`) and Python 3.11+. No third-party dependencies need to be installed:
 
 ```sh
 npm test
