@@ -40,6 +40,25 @@ GitHub Pages hosts static files. Parameters such as `?handle=...` or `?date=...`
 
 Check the HTTP status before parsing JSON. Pages 404s and network errors do not have a project-defined JSON error body. HTTP 200 can include old data retained after upstream failures, so inspect `sources`. GitHub Pages manages caching and response headers. This project has no separate client quota, forced-refresh endpoint, or real-time availability guarantee. Reuse snapshots and avoid frequent polling.
 
+### GET /data/summary.json
+
+A compact companion to the dashboard, built by `npm run build` from the same snapshot and deployed with it. The [lucius7.dev panel](https://lucius7.dev/oj/) and its API read this file because it is about 20 KB instead of 5 MB. Full endpoint: [summary.json](https://ojflare.lucius7.dev/data/summary.json); schema: `Summary` in the [OpenAPI contract](openapi.json).
+
+| Field | Meaning |
+| --- | --- |
+| `schema_version` | `1` |
+| `generated_at` / `built_at` | Dashboard `generatedAt` (last sync) and the time this summary was built |
+| `today` | Build date in UTC+8. Counts, streaks and daily totals stop at this day and do not move until the next build |
+| `solved` / `accepted` | Distinct solved problems (including undated solves) and accepted submissions (including repeats) |
+| `counts` | First ACs `today`, in the last 7 days (`week`), this `month` and this `year` |
+| `streak` | `current` and `longest` runs of days with a first AC |
+| `platforms` | Per enabled platform: `name`, `solved`, `accepted`, `rating`, `max_rating`, `rank`, `profile_url`, `last_success`, `coverage` |
+| `daily` | First ACs per UTC+8 day, only days with at least one |
+| `monthly` | First ACs per month: `total` plus one key per platform |
+| `recent` | The 30 latest accepted submissions, newest first, with `first` marking first ACs |
+
+The same rules as the browser model apply: first ACs are deduplicated per platform problem, Luogu is excluded, and days use UTC+8.
+
 <a id="数据获取方式"></a>
 
 ### Ways to retrieve data
