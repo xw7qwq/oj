@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import datetime as dt
 from decimal import Decimal, InvalidOperation
+import hashlib
+from http.client import HTTPException
+from http.cookiejar import CookieJar
 from html.parser import HTMLParser
 import re
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urljoin, urlparse
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, Request, build_opener
 
 BASE = "https://qoj.ac"
 ZONE = dt.timezone(dt.timedelta(hours=8))
@@ -20,16 +23,21 @@ class AuthenticationRequired(RuntimeError):
 
 
 def trusted_origin(target):
-    return target.scheme == "https" and target.hostname == "qoj.ac" and target.port in (None, 443) and target.username is None and target.password is None
+    try:
+        return target.scheme == "https" and target.hostname == "qoj.ac" and target.port in (None, 443) and target.username is None and target.password is None
+    except ValueError:
+        return False
 
 
 class SafeRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if req.get_method() != "GET":
+            raise AuthenticationRequired("QOJ login redirected; stopping without forwarding credentials")
         target = urlparse(newurl)
         if not trusted_origin(target):
             raise AuthenticationRequired("QOJ redirected outside its origin; no credentials were forwarded")
         if target.path.rstrip("/") == "/login":
-            raise AuthenticationRequired("QOJ login expired; update QOJ_COOKIE")
+            raise AuthenticationRequired("QOJ login expired; check login credentials or update QOJ_COOKIE")
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
@@ -37,20 +45,85 @@ class QojClient:
     def __init__(self, cookie):
         if not cookie or any(char in cookie for char in ("\r", "\n")):
             raise AuthenticationRequired("Configure a valid QOJ_COOKIE in GitHub Actions Secrets")
+        self._initialize(cookie)
+
+    def _initialize(self, cookie=None):
         self.cookie = cookie
-        self.opener = build_opener(SafeRedirect())
+        self.cookies = CookieJar()
+        self.opener = build_opener(SafeRedirect(), HTTPCookieProcessor(self.cookies))
         self.last_request = 0
+
+    @classmethod
+    def from_credentials(cls, username, password):
+        if any(not isinstance(value, str) or not value or any(char in value for char in ("\r", "\n", "\0")) for value in (username, password)):
+            raise AuthenticationRequired("Configure both QOJ_USERNAME and QOJ_PASSWORD in GitHub Actions Secrets")
+        client = cls.__new__(cls)
+        client._initialize()
+        document = client._login_request()
+        try:
+            token = login_token(document)
+        except (ValueError, TypeError):
+            raise AuthenticationRequired("QOJ login form is invalid or changed") from None
+        try:
+            # This is the current QOJ browser form's wire format, not a stored password.
+            digest = hashlib.md5(password.encode("utf-8"), usedforsecurity=False).hexdigest()
+            payload = urlencode({"_token": token, "login": "", "username": username, "password": digest, "trust": ""}).encode("ascii")
+        except (ValueError, TypeError):
+            raise AuthenticationRequired("QOJ login credentials cannot be encoded") from None
+        result = client._login_request(payload)
+        if result != "ok":
+            messages = {
+                "failed": "QOJ rejected the username or password; update QOJ_USERNAME and QOJ_PASSWORD",
+                "expired": "QOJ login page session expired; no login retry was made",
+                "banned": "QOJ account has no login permission; contact QOJ normally",
+                "secure": "QOJ requires a normal browser security check",
+                "2fa": "QOJ requires two-factor authentication in a normal browser session",
+                "pending_2fa": "QOJ requires additional verification in a normal browser session",
+            }
+            raise AuthenticationRequired(messages.get(result, "QOJ login returned an unexpected response; no login retry was made"))
+        return client
+
+    def _headers(self):
+        headers = {"Accept": "text/html", "Accept-Language": "en", "User-Agent": "OJFlare/1.0 (+https://github.com/xw7qwq/ojflare)"}
+        if self.cookie:
+            headers["Cookie"] = self.cookie
+        return headers
+
+    def _wait(self):
+        pause = 2.2 - (time.monotonic() - self.last_request)
+        if pause > 0:
+            time.sleep(pause)
+        self.last_request = time.monotonic()
+
+    def _login_request(self, data=None):
+        """A single request: never replay a password POST or log its response."""
+        self._wait()
+        headers = self._headers()
+        if data is not None:
+            headers.update({"Content-Type": "application/x-www-form-urlencoded", "Origin": BASE,
+                            "Referer": f"{BASE}/login", "X-Requested-With": "XMLHttpRequest"})
+        request = Request(f"{BASE}/login", data=data, headers=headers)
+        try:
+            with self.opener.open(request, timeout=40) as response:
+                document = response.read().decode("utf-8")
+            require_no_access_check(document)
+            return document
+        except AuthenticationRequired:
+            raise
+        except HTTPError as error:
+            error.close()
+            raise AuthenticationRequired(f"QOJ login returned HTTP {error.code}; stopping without retrying") from None
+        except (URLError, TimeoutError, OSError, ValueError, HTTPException):
+            # Request and response exceptions can include passwords, hashes or cookies.
+            raise AuthenticationRequired("QOJ login request failed or returned an invalid response; no retry was made") from None
 
     def get(self, url):
         target = urlparse(url)
         if not trusted_origin(target):
             raise ValueError("Only HTTPS requests to qoj.ac are allowed")
         for attempt in range(3):
-            pause = 2.2 - (time.monotonic() - self.last_request)
-            if pause > 0:
-                time.sleep(pause)
-            self.last_request = time.monotonic()
-            request = Request(url, headers={"Cookie": self.cookie, "Accept": "text/html", "Accept-Language": "en", "User-Agent": "OJFlare/1.0 (+https://github.com/xw7qwq/ojflare)"})
+            self._wait()
+            request = Request(url, headers=self._headers())
             try:
                 with self.opener.open(request, timeout=40) as response:
                     document = response.read().decode("utf-8")
@@ -66,7 +139,7 @@ class QojClient:
                     raise RuntimeError("QOJ returned HTTP 429; stopping this sync without retrying") from None
                 if attempt == 2:
                     raise RuntimeError(f"QOJ request failed: HTTP {error.code}") from None
-            except (URLError, TimeoutError, OSError, ValueError):
+            except (URLError, TimeoutError, OSError, ValueError, HTTPException):
                 # Do not include request/header exceptions: they may contain Cookie.
                 if attempt == 2:
                     raise RuntimeError("QOJ request failed or returned an invalid response") from None
@@ -113,12 +186,42 @@ class Document(HTMLParser):
         self.stack[-1].children.append(value)
 
 
+def require_no_access_check(document):
+    lower = document.lower()
+    if any(marker in lower for marker in ("cf-chl-", "just a moment...", "verify you are human", "g-recaptcha", "h-captcha", "cf-turnstile")):
+        raise AuthenticationRequired("QOJ access check requires a normal browser session")
+
+
+def login_token(document):
+    """Accept only the observed QOJ login form; never execute page JavaScript."""
+    require_no_access_check(document)
+    root = Document(document).root
+    forms = [form for form in root.find("form") if form.attrs.get("id") == "form-login"]
+    if len(forms) != 1 or (forms[0].attrs.get("method") or "").lower() != "post":
+        raise AuthenticationRequired("QOJ login form is missing or changed")
+    form = forms[0]
+    action = urlparse(urljoin(f"{BASE}/login", form.attrs.get("action", "")))
+    if not trusted_origin(action) or action.path != "/login" or action.query or action.fragment:
+        raise AuthenticationRequired("QOJ login form target is not recognized")
+    fields = [(node.attrs.get("name"), (node.attrs.get("type") or "text").lower()) for node in form.find("input")]
+    if fields.count(("username", "text")) != 1 or fields.count(("password", "password")) != 1:
+        raise AuthenticationRequired("QOJ login form fields are missing or changed")
+    scripts = "\n".join(node.text() for node in root.find("script"))
+    posts = re.findall(r"\$\.post\(\s*['\"]/login['\"]\s*,\s*\{(.*?)\}\s*,", scripts, re.DOTALL)
+    if len(posts) != 1:
+        raise AuthenticationRequired("QOJ login form submission is missing or changed")
+    tokens = re.findall(r"\b_token\s*:\s*(['\"])([A-Za-z0-9]{20,256})\1", posts[0])
+    password_field = r"\bpassword\s*:\s*md5\(\s*\$\(\s*['\"]#input-password['\"]\s*\)\.val\(\s*\)\s*\)\s*(?:,|$)"
+    if len(tokens) != 1 or not re.search(password_field, posts[0]):
+        raise AuthenticationRequired("QOJ login token or password protocol is missing or changed")
+    return tokens[0][1]
+
+
 def require_page(document):
+    require_no_access_check(document)
     lower = document.lower()
     if re.search(r'type\s*=\s*["\']password["\']', lower) or 'id="form-login"' in lower or 'id="div-password"' in lower:
-        raise AuthenticationRequired("QOJ requires login; update QOJ_COOKIE")
-    if "cf-chl-" in lower or "just a moment..." in lower or "verify you are human" in lower:
-        raise AuthenticationRequired("QOJ access check requires a normal browser session")
+        raise AuthenticationRequired("QOJ requires login; check login credentials or update QOJ_COOKIE")
 
 
 def local_path(url):

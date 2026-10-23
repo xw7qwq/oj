@@ -1,5 +1,6 @@
 import copy
 import importlib.util
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -24,6 +25,32 @@ class FakeClient:
 
 
 class SyncTests(unittest.TestCase):
+    def test_qoj_password_login_takes_precedence_over_old_cookie(self):
+        with patch.dict(os.environ, {"QOJ_USERNAME": "login-account", "QOJ_PASSWORD": "test-password", "QOJ_COOKIE": "old-session"}, clear=True), patch.object(sync, "QojClient") as client, patch.object(sync, "collect_qoj_records", return_value={}) as collect, patch.object(sync, "make_snapshot"):
+            sync.collect_qoj(None, None)
+            client.from_credentials.assert_called_once_with("login-account", "test-password")
+            client.assert_not_called()
+            collect.assert_called_once_with(client.from_credentials.return_value, sync.QOJ_HANDLE, None)
+
+    def test_qoj_cookie_mode_remains_available(self):
+        with patch.dict(os.environ, {"QOJ_COOKIE": "session=test"}, clear=True), patch.object(sync, "QojClient") as client, patch.object(sync, "collect_qoj_records", return_value={}), patch.object(sync, "make_snapshot"):
+            sync.collect_qoj(None, None)
+            client.assert_called_once_with("session=test")
+            client.from_credentials.assert_not_called()
+
+    def test_first_qoj_sync_uses_password_credentials_and_reports_partial_configuration(self):
+        for credentials in ({"QOJ_USERNAME": "login-account", "QOJ_PASSWORD": "test-password"}, {"QOJ_USERNAME": "login-account"}, {"QOJ_PASSWORD": "test-password"}):
+            with self.subTest(keys=list(credentials)), patch.dict(os.environ, credentials, clear=True), patch.object(sys, "argv", ["sync.py"]), patch.object(sync, "ACTIVE_PLATFORMS", ("qoj",)), patch.object(sync, "read_json", return_value=None), patch.object(sync, "atomic_json") as save, patch.object(sync, "collect_qoj", side_effect=RuntimeError("Authentication unavailable")) as collect:
+                sync.main()
+                collect.assert_called_once()
+                self.assertEqual(save.call_args.args[1]["sources"]["qoj"]["status"], "error")
+
+    def test_offline_first_qoj_sync_does_not_log_in_with_credentials(self):
+        with patch.dict(os.environ, {"QOJ_USERNAME": "login-account", "QOJ_PASSWORD": "test-password"}, clear=True), patch.object(sys, "argv", ["sync.py", "--offline"]), patch.object(sync, "ACTIVE_PLATFORMS", ("qoj",)), patch.object(sync, "read_json", return_value=None), patch.object(sync, "atomic_json") as save, patch.object(sync, "collect_qoj") as collect:
+            sync.main()
+            collect.assert_not_called()
+            self.assertEqual(save.call_args.args[1]["sources"]["qoj"]["status"], "needs_auth")
+
     def test_public_snapshot_excludes_disabled_source_and_requires_actual_contest_submissions(self):
         active = {"platform": "atcoder", "problems": [{"id": "atcoder:shared"}],
                   "accepted": [{"problemId": "atcoder:shared", "epoch": 10}], "attempted": ["atcoder:shared"],

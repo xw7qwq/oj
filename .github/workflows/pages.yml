@@ -53,6 +53,8 @@ jobs:
         id: sync
         env:
           QOJ_COOKIE: ${{ secrets.QOJ_COOKIE }}
+          QOJ_USERNAME: ${{ secrets.QOJ_USERNAME }}
+          QOJ_PASSWORD: ${{ secrets.QOJ_PASSWORD }}
           QOJ_HANDLE: ${{ vars.QOJ_HANDLE }}
         run: python3 scripts/sync.py
       - name: Preserve snapshots for the next sync
