@@ -336,8 +336,17 @@ def collect_codeforces(client, previous):
 
 
 def collect_qoj(client, previous):
-    qoj_client = QojClient(os.environ.get("QOJ_COOKIE", ""))
+    username, password = os.environ.get("QOJ_USERNAME", ""), os.environ.get("QOJ_PASSWORD", "")
+    if username or password:
+        qoj_client = QojClient.from_credentials(username, password)
+    else:
+        qoj_client = QojClient(os.environ.get("QOJ_COOKIE", ""))
     return make_snapshot("qoj", **collect_qoj_records(qoj_client, QOJ_HANDLE, previous), handle=QOJ_HANDLE)
+
+
+def qoj_auth_configured():
+    # Partial credentials must report a configuration error, not silently skip.
+    return any(os.environ.get(name) for name in ("QOJ_COOKIE", "QOJ_USERNAME", "QOJ_PASSWORD"))
 
 
 def collect_luogu(client, previous):
@@ -494,7 +503,7 @@ def main():
             sources[platform] = pending_nowcoder()
             print("Nowcoder: awaiting first public-practice snapshot", flush=True)
             continue
-        if platform == "qoj" and previous is None and (args.offline or not os.environ.get("QOJ_COOKIE")):
+        if platform == "qoj" and previous is None and (args.offline or not qoj_auth_configured()):
             sources[platform] = pending_qoj()
             print("QOJ: awaiting first authenticated sync; excluded from totals", flush=True)
             continue

@@ -403,7 +403,7 @@ The base URL is `https://qoj.ac`. The project reads HTML available to a normal a
 
 An actual contest problem link `/contest/{contestId}/problem/{problemId}` in a submission row is evidence of a submission in that contest. An AC on standalone `/problem/{problemId}` still contributes totals and dates, but a list of past contest appearances does not create participation. Reused QOJ problems are deduplicated by the same `qoj:{problemId}`.
 
-Pages contain ten records. Collection starts at page 1 and validates current-page, next-page, and user-filter state while deduplicating IDs. Stalled pagination, missing pages, or a required continuation beyond page 1000 fails collection. Cookie-authenticated collection rereads the entire submission history. Complete cached contest catalogs are reused if they cover current submitted problems. Failure to parse a required catalog causes the entire QOJ source to fall back, rather than publishing a partial new history.
+Pages contain ten records. Collection starts at page 1 and validates current-page, next-page, and user-filter state while deduplicating IDs. Stalled pagination, missing pages, or a required continuation beyond page 1000 fails collection. Authenticated collection rereads the entire submission history. Complete cached contest catalogs are reused if they cover current submitted problems. Failure to parse a required catalog causes the entire QOJ source to fall back, rather than publishing a partial new history.
 
 Acceptance prefers valid `data-score` equal to positive `data-full`. Without complete score attributes, only explicit `AC` / `Accepted` text is accepted. A score of 100 or a partial score is not independently interpreted as full credit. Page submission times are parsed as UTC+8. Unknown contest start times remain `startEpoch: 0`; the latest submission is stored separately in `lastSubmissionEpoch`.
 
@@ -411,12 +411,22 @@ Acceptance prefers valid `data-score` equal to positive `data-full`. Without com
 
 #### Configuring daily QOJ synchronization
 
+For account-password login:
+
+1. Open **Settings → Secrets and variables → Actions** and add repository secrets `QOJ_USERNAME` and `QOJ_PASSWORD` with your normal QOJ login credentials.
+2. Leave `QOJ_HANDLE` at its default `Lucius7`, or set it under Variables to select a different submission-history account. The login username and collected handle are separate settings.
+3. Dispatch **Daily sync and GitHub Pages**. Confirm QOJ's `lastSuccess` advances and its `error` is null.
+
+Each online sync requests the normal QOJ login page, keeps its session and CSRF token in memory, and submits one login request using the same MD5 password transformation as QOJ's browser form. It then reuses the session for collection. Passwords, password hashes, CSRF tokens, and session cookies are never written to snapshots or logs. The session is not saved between runs. Account credentials take precedence over `QOJ_COOKIE`; a partially configured pair is an error, and rejected credentials do not trigger a fallback login attempt.
+
+For the existing cookie-only alternative, leave both account credentials unset:
+
 1. Log in normally to [QOJ](https://qoj.ac/login) in your browser, open your submission list, and complete the site's required verification.
 2. Select that QOJ request in the browser developer tools' Network panel, find `Cookie` under Request Headers, and copy its **value**. Do not put it in chat, screenshots, source code, or documentation.
 3. Open **Settings → Secrets and variables → Actions → New repository secret** and store it as `QOJ_COOKIE`. For another username, add `QOJ_HANDLE` under Variables; the default is `Lucius7`.
 4. Dispatch **Daily sync and GitHub Pages** and inspect QOJ's `lastSuccess` and `error`. Daily runs then use the same secret; update it the same way when it expires.
 
-Logging into the browser does not automatically send the cookie to GitHub Actions. Requests carry it only to `https://qoj.ac`. Cross-origin redirects are rejected. Login pages, access verification, 401 / 403, or 429 stop the current QOJ sync. Existing data is preserved with a warning; without a snapshot, an unconnected state is returned. A valid cookie does not guarantee that the site permits Actions requests. Complete normal verification when needed; do not bypass it.
+Logging into the browser does not automatically send the cookie to GitHub Actions. Credentials and cookies are sent only to `https://qoj.ac`. Cross-origin redirects and redirects from a login POST are rejected. Login requests are not retried. Two-factor authentication, access verification, incorrect credentials, 401 / 403, or 429 stop the current QOJ sync. Existing data is preserved with a warning; without a snapshot, an unconnected or error state is returned. Valid credentials do not guarantee that the site permits Actions requests. Complete normal verification when needed; do not bypass it.
 
 <a id="牛客公开编程练习提交"></a>
 
@@ -529,7 +539,7 @@ Check freshness separately through:
 2. The age of `sources[platform].lastSuccess`; the page warns after 36 hours.
 3. Whether `warnings` describes optional-data problems; inspect `profile.lastSuccess` for rating freshness.
 
-`collectionMethod: "browser_import"` means the current data still comes from manual collection; successful QOJ cookie sync changes it to `authenticated_http`. When daily budgets skip requests or access stops, aggregate generation time is not a new collection time. `generatedAt` only records aggregation. AtCoder Problems can lag live AtCoder submissions, so upstream delays still apply after a successful project sync.
+`collectionMethod: "browser_import"` means the current data still comes from manual collection; successful QOJ authenticated sync changes it to `authenticated_http`. When daily budgets skip requests or access stops, aggregate generation time is not a new collection time. `generatedAt` only records aggregation. AtCoder Problems can lag live AtCoder submissions, so upstream delays still apply after a successful project sync.
 
 GitHub Actions deploys available degraded snapshots first, then marks the workflow failed through `degraded=true` to surface the issue. Optional-data warnings alone do not set this flag. A site HTTP 200 or successful workflow does not replace per-platform freshness checks.
 
@@ -537,7 +547,7 @@ GitHub Actions deploys available degraded snapshots first, then marks the workfl
 
 ## Access boundaries
 
-QOJ collection uses a normal authenticated account session. This project offers neither proxy login nor an unauthenticated live user-history endpoint. Only returned, verifiable submissions and contests enter snapshots. It does not bypass login pages, human verification, or access restrictions. When a cookie expires, existing data remains with a notice; an unconnected first run does not invent zero submissions.
+QOJ collection uses a normal authenticated account session, obtained through the login form or a configured cookie. This project offers neither a public login service nor an unauthenticated live user-history endpoint. Only returned, verifiable submissions and contests enter snapshots. It does not bypass two-factor authentication, human verification, or access restrictions. When authentication fails, existing data remains with a notice; an unconnected first run does not invent zero submissions.
 
 Luogu currently receives no automatic requests. The historical adapter did not call a personal submission-history API or test account limits. The [official OpenAPI](https://docs.lgapi.cn/open/openapi) interfaces for judging submissions, results, and quotas cannot recover personal historical AC times. Future integration requires checking available data and then-current upstream rules. Retaining the internal adapter does not mean collection is enabled.
 

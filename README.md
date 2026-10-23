@@ -37,7 +37,7 @@ OJFlare uses the custom domain **[ojflare.lucius7.dev](https://ojflare.lucius7.d
 | --- | --- | --- |
 | AtCoder | AtCoder Problems and official public data | Public submissions, problems, contest mappings, estimated difficulty, and official Algorithm rating |
 | Codeforces | Official API and public Gym pages | API-visible submissions, problems, contests, and ratings, supplemented with problem lists for public Gym contests with submissions |
-| QOJ | Authenticated HTML pages | Submission history and contests with actual submissions, when `QOJ_COOKIE` is configured |
+| QOJ | Authenticated HTML pages | Submission history and contests with actual submissions, using account credentials or a session cookie |
 | Nowcoder | Public coding-practice pages without authentication | Practice submissions and current rating for UID `423062492` / `theLucius7`; no contest progress |
 | Luogu | Temporarily disabled | No requests, exports, or statistical contribution; only historical internal adapters and snapshots remain |
 
@@ -85,10 +85,14 @@ AtCoder, Codeforces, and Nowcoder do not require API keys, cookies, or personal 
 
 | Setting | GitHub Actions location | Description |
 | --- | --- | --- |
-| `QOJ_COOKIE` | Repository secret | A valid cookie from a normal QOJ login; required for automatic QOJ synchronization |
+| `QOJ_USERNAME` | Repository secret | QOJ login username; configure together with `QOJ_PASSWORD` for a fresh session on each sync |
+| `QOJ_PASSWORD` | Repository secret | QOJ account password; configure together with `QOJ_USERNAME` |
+| `QOJ_COOKIE` | Repository secret | Alternative: a valid cookie from a normal QOJ login, used only when neither account credential is configured |
 | `QOJ_HANDLE` | Repository variable | Optional; defaults to `Lucius7` |
 
-Configure them under **Settings → Secrets and variables → Actions**. Environment variables with the same names are supported locally. Browser sessions are not automatically passed to Actions. When the cookie expires, update the secret and rerun synchronization. Do not put cookies in source code, data files, or commits.
+Configure them under **Settings → Secrets and variables → Actions**. Environment variables with the same names are supported locally. Account credentials take precedence over `QOJ_COOKIE`; configuring only one credential reports an error. Login uses QOJ's normal form and an in-memory session, with one login attempt per sync and no saved session files. `QOJ_HANDLE` selects the submission history to collect and is separate from the login username.
+
+Browser sessions are not automatically passed to Actions. In cookie-only mode, update `QOJ_COOKIE` when it expires. Two-factor authentication, human verification, denied access, or rejected credentials stop QOJ synchronization while preserving its last successful snapshot. Do not put passwords or cookies in source code, data files, or commits. See the [login configuration guide](docs/API.md#configuring-daily-qoj-synchronization).
 
 The project does not yet provide general multi-user configuration. To change accounts in a fork, update `HANDLE` in the [synchronizer](scripts/sync.py), `UID` / `HANDLE` in the [Nowcoder adapter](scripts/nowcoder.py), and personal links in the [page](public/index.html). Replace the previous user's snapshots, then synchronize, test, and build. QOJ's `QOJ_HANDLE` must match the corresponding snapshot account.
 

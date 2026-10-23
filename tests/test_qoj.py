@@ -1,12 +1,57 @@
+from email.message import Message
+import hashlib
+from http.client import IncompleteRead
+from io import BytesIO
 from pathlib import Path
 import sys
+import traceback
 import unittest
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError, URLError
-from urllib.request import Request
+from urllib.parse import parse_qs
+from urllib.request import HTTPSHandler, Request, build_opener
+from urllib.response import addinfourl
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import qoj
+
+
+LOGIN_TOKEN = 'fixtureTokenForOfflineTests0123456789'
+LOGIN_PAGE = '''<form id="form-login" method="post">
+<input type="text" name="username" id="input-username">
+<input type="password" name="password" id="input-password"></form>
+<script>$.post('/login', {
+_token: "''' + LOGIN_TOKEN + '''", login: '',
+username: $('#input-username').val(),
+password: md5($('#input-password').val()), trust: ''
+}, function(msg) { if (msg == 'ok') { window.location.href = '/'; } });</script>'''
+
+
+class ScriptedHTTPS(HTTPSHandler):
+    """Run urllib's real cookie and redirect handlers without any network I/O."""
+    def __init__(self, replies):
+        super().__init__()
+        self.replies = list(replies)
+        self.requests = []
+
+    def https_open(self, request):
+        self.requests.append(request)
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        body, status, headers = reply
+        message = Message()
+        for key, value in headers.items():
+            message[key] = value
+        if isinstance(body, str):
+            body = body.encode('utf-8')
+        response = addinfourl(BytesIO(body), message, request.full_url, status)
+        response.msg = 'fixture response'
+        return response
+
+
+def login_response(body=LOGIN_PAGE, status=200, **headers):
+    return body, status, headers
 
 
 def submission_row(submission_id=10, problem_id=42, result='AC ✓', user='Lucius7', contest_id=None, date='2026-09-08 00:00:00'):
@@ -37,6 +82,168 @@ class FakeClient:
 
 
 class QojTests(unittest.TestCase):
+    def authenticate_with(self, replies, username='fixture-user', password='fixture-password'):
+        handler = ScriptedHTTPS(replies)
+        with patch.object(qoj, 'build_opener', side_effect=lambda *handlers: build_opener(handler, *handlers)), patch.object(qoj.time, 'sleep'):
+            client = qoj.QojClient.from_credentials(username, password)
+        return client, handler
+
+    def test_password_login_uses_current_form_and_rotated_session_cookie(self):
+        client, handler = self.authenticate_with([
+            login_response(**{'Set-Cookie': 'PHPSESSID=initial; Path=/; Secure; HttpOnly'}),
+            login_response('ok', **{'Set-Cookie': 'PHPSESSID=authenticated; Path=/; Secure; HttpOnly'}),
+            login_response(page(submission_row())),
+        ], password='fixture-pässword')
+        first, post = handler.requests
+        self.assertEqual(first.full_url, 'https://qoj.ac/login')
+        self.assertEqual(first.get_method(), 'GET')
+        self.assertIsNone(first.get_header('Cookie'))
+        self.assertEqual(post.full_url, 'https://qoj.ac/login')
+        self.assertEqual(post.get_method(), 'POST')
+        self.assertEqual(post.get_header('Cookie'), 'PHPSESSID=initial')
+        self.assertEqual(post.get_header('Origin'), 'https://qoj.ac')
+        self.assertEqual(post.get_header('Referer'), 'https://qoj.ac/login')
+        self.assertEqual(post.get_header('Content-type'), 'application/x-www-form-urlencoded')
+        self.assertEqual(parse_qs(post.data.decode('ascii'), keep_blank_values=True), {
+            '_token': [LOGIN_TOKEN], 'login': [''], 'username': ['fixture-user'],
+            'password': [hashlib.md5('fixture-pässword'.encode(), usedforsecurity=False).hexdigest()], 'trust': [''],
+        })
+        self.assertNotIn('fixture-pässword'.encode(), post.data)
+        self.assertIsNone(client.cookie)
+        self.assertNotIn('password', vars(client))
+        with patch.object(qoj.time, 'sleep'):
+            rows, _ = qoj.parse_submissions(client.get('https://qoj.ac/submissions?submitter=Lucius7&page=1'), 'Lucius7', 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(handler.requests[-1].get_header('Cookie'), 'PHPSESSID=authenticated')
+
+    def test_password_login_rejects_missing_credentials_before_requests(self):
+        for username, password in [('', 'test'), ('test', ''), (None, 'test'), ('test', None), ('bad\nname', 'test'), ('test', 'bad\rpassword')]:
+            with self.subTest(username=username, password=password), patch.object(qoj, 'build_opener') as opener:
+                with self.assertRaisesRegex(qoj.AuthenticationRequired, 'both QOJ_USERNAME and QOJ_PASSWORD'):
+                    qoj.QojClient.from_credentials(username, password)
+                opener.assert_not_called()
+
+    def test_password_login_requires_verified_form_token_and_md5_protocol(self):
+        invalid = [
+            '<h2>Login unavailable</h2>',
+            LOGIN_PAGE.replace('form-login', 'other-form'),
+            LOGIN_PAGE.replace('method="post"', 'method="get"'),
+            LOGIN_PAGE.replace('method="post"', 'method'),
+            LOGIN_PAGE.replace('method="post"', 'method="post" action="https://example.com/login"'),
+            LOGIN_PAGE.replace('method="post"', 'method="post" action="http://qoj.ac/login"'),
+            LOGIN_PAGE.replace('method="post"', 'method="post" action="https://qoj.ac:private-response/login"'),
+            LOGIN_PAGE.replace('method="post"', 'method="post" action="https://[broken/login"'),
+            LOGIN_PAGE.replace('name="username"', 'name="email"'),
+            LOGIN_PAGE.replace(LOGIN_TOKEN, ''),
+            LOGIN_PAGE.replace('_token:', 'another_token:'),
+            LOGIN_PAGE.replace('login: \'\'', '_token: "anotherFixtureToken1234567890", login: \'\''),
+            LOGIN_PAGE.replace("$.post('/login'", "$.post('/other'"),
+            LOGIN_PAGE.replace("md5($('#input-password').val())", "md5($('#input-password').val(), 'salt')"),
+        ]
+        for document in invalid:
+            with self.subTest(document=document):
+                handler = ScriptedHTTPS([login_response(document)])
+                with patch.object(qoj, 'build_opener', side_effect=lambda *handlers: build_opener(handler, *handlers)), patch.object(qoj.time, 'sleep'):
+                    with self.assertRaises(qoj.AuthenticationRequired):
+                        qoj.QojClient.from_credentials('fixture-user', 'fixture-password')
+                self.assertEqual(len(handler.requests), 1)
+
+    def test_password_login_known_failures_stop_after_one_post(self):
+        outcomes = {'failed': 'username or password', 'expired': 'session expired', 'banned': 'no login permission',
+                    'secure': 'security check', '2fa': 'two-factor', 'pending_2fa': 'additional verification'}
+        for result, expected in outcomes.items():
+            with self.subTest(result=result):
+                handler = ScriptedHTTPS([login_response(), login_response(result)])
+                with patch.object(qoj, 'build_opener', side_effect=lambda *handlers: build_opener(handler, *handlers)), patch.object(qoj.time, 'sleep'):
+                    with self.assertRaisesRegex(qoj.AuthenticationRequired, expected):
+                        qoj.QojClient.from_credentials('fixture-user', 'fixture-password')
+                self.assertEqual([req.get_method() for req in handler.requests], ['GET', 'POST'])
+
+    def test_password_login_requires_exact_success_and_does_not_echo_response(self):
+        secret = 'private-fixture-password'
+        digest = hashlib.md5(secret.encode(), usedforsecurity=False).hexdigest()
+        for response in ['ok\n', ' ok', '<html>ok</html>', f'failed: {secret} {digest} {LOGIN_TOKEN}', b'\xffprivate-cookie']:
+            with self.subTest(response=response):
+                handler = ScriptedHTTPS([login_response(), login_response(response)])
+                with patch.object(qoj, 'build_opener', side_effect=lambda *handlers: build_opener(handler, *handlers)), patch.object(qoj.time, 'sleep'):
+                    try:
+                        qoj.QojClient.from_credentials('fixture-user', secret)
+                    except qoj.AuthenticationRequired:
+                        output = traceback.format_exc()
+                    else:
+                        self.fail('Unverified login response was accepted')
+                for private in (secret, digest, LOGIN_TOKEN, 'private-cookie'):
+                    self.assertNotIn(private, output)
+                self.assertEqual(len(handler.requests), 2)
+
+    def test_login_network_errors_are_sanitized_and_never_retried(self):
+        secret = 'private-fixture-password'
+        digest = hashlib.md5(secret.encode(), usedforsecurity=False).hexdigest()
+        detail = f'{secret} {digest} private-cookie'
+        failures = [URLError(detail), TimeoutError(detail), OSError(detail), ValueError(detail), IncompleteRead(detail.encode())]
+        for failure in failures:
+            for post in (False, True):
+                with self.subTest(failure=type(failure).__name__, post=post):
+                    handler = ScriptedHTTPS(([login_response()] if post else []) + [failure])
+                    with patch.object(qoj, 'build_opener', side_effect=lambda *handlers: build_opener(handler, *handlers)), patch.object(qoj.time, 'sleep'):
+                        try:
+                            qoj.QojClient.from_credentials('fixture-user', secret)
+                        except qoj.AuthenticationRequired:
+                            output = traceback.format_exc()
+                        else:
+                            self.fail('Failed login request was accepted')
+                    for private in (secret, digest, 'private-cookie'):
+                        self.assertNotIn(private, output)
+                    self.assertEqual(len(handler.requests), 2 if post else 1)
+
+    def test_login_http_denials_and_errors_are_not_retried(self):
+        for status in (401, 403, 429, 500):
+            for post in (False, True):
+                with self.subTest(status=status, post=post):
+                    handler = ScriptedHTTPS(([login_response()] if post else []) + [login_response('private-response', status)])
+                    with patch.object(qoj, 'build_opener', side_effect=lambda *handlers: build_opener(handler, *handlers)), patch.object(qoj.time, 'sleep'):
+                        with self.assertRaisesRegex(qoj.AuthenticationRequired, f'HTTP {status}') as error:
+                            qoj.QojClient.from_credentials('fixture-user', 'fixture-password')
+                    self.assertNotIn('private-response', str(error.exception))
+                    self.assertEqual(len(handler.requests), 2 if post else 1)
+
+    def test_login_access_checks_stop_before_posting_credentials(self):
+        for marker in ['cf-chl-token', 'Just a moment...', 'Verify you are human', 'g-recaptcha', 'h-captcha', 'cf-turnstile']:
+            with self.subTest(marker=marker):
+                handler = ScriptedHTTPS([login_response(LOGIN_PAGE + marker)])
+                with patch.object(qoj, 'build_opener', side_effect=lambda *handlers: build_opener(handler, *handlers)), patch.object(qoj.time, 'sleep'):
+                    with self.assertRaisesRegex(qoj.AuthenticationRequired, 'normal browser session'):
+                        qoj.QojClient.from_credentials('fixture-user', 'fixture-password')
+                self.assertEqual(len(handler.requests), 1)
+
+    def test_login_post_redirects_never_forward_credentials(self):
+        for status in (301, 302, 303, 307, 308):
+            for destination in ('https://qoj.ac/', 'https://qoj.ac/login/2fa', 'https://example.com/login', 'http://qoj.ac/login'):
+                with self.subTest(status=status, destination=destination):
+                    handler = ScriptedHTTPS([login_response(), login_response('', status, Location=destination)])
+                    with patch.object(qoj, 'build_opener', side_effect=lambda *handlers: build_opener(handler, *handlers)), patch.object(qoj.time, 'sleep'):
+                        with self.assertRaisesRegex(qoj.AuthenticationRequired, 'without forwarding credentials'):
+                            qoj.QojClient.from_credentials('fixture-user', 'fixture-password')
+                    self.assertEqual(len(handler.requests), 2)
+
+    def test_login_get_cannot_redirect_outside_https_qoj(self):
+        for destination in ('https://example.com/login', 'http://qoj.ac/login', 'https://qoj.ac:8443/login'):
+            with self.subTest(destination=destination):
+                handler = ScriptedHTTPS([login_response('', 302, Location=destination)])
+                with patch.object(qoj, 'build_opener', side_effect=lambda *handlers: build_opener(handler, *handlers)), patch.object(qoj.time, 'sleep'):
+                    with self.assertRaises(qoj.AuthenticationRequired):
+                        qoj.QojClient.from_credentials('fixture-user', 'fixture-password')
+                self.assertEqual(len(handler.requests), 1)
+
+    def test_existing_cookie_mode_does_not_request_login(self):
+        handler = ScriptedHTTPS([login_response(page(submission_row()))])
+        with patch.object(qoj, 'build_opener', side_effect=lambda *handlers: build_opener(handler, *handlers)), patch.object(qoj.time, 'sleep'):
+            client = qoj.QojClient('fixture=legacy')
+            client.get('https://qoj.ac/submissions?submitter=Lucius7&page=1')
+        self.assertEqual(len(handler.requests), 1)
+        self.assertEqual(handler.requests[0].get_header('Cookie'), 'fixture=legacy')
+        self.assertIn('/submissions?', handler.requests[0].full_url)
+
     def test_raw_username_span_is_checked_before_virtual_contest_marker(self):
         original = '<a href="//qoj.ac/user/profile/Lucius7">Lucius7</a>'
         raw = '<span class="uoj-username" data-nickname="Lucius7" data-rated="1">Lucius7</span><sup><a href="/contest/2581">#</a></sup>'
@@ -147,14 +354,16 @@ class QojTests(unittest.TestCase):
         self.assertNotIn('private-test-cookie', str(error.exception))
 
     def test_transient_failures_have_bounded_retries_and_are_sanitized(self):
-        client = qoj.QojClient('private-test-cookie')
-        client.opener = Mock()
-        client.opener.open.side_effect = URLError('private-test-cookie')
-        with patch.object(qoj.time, 'sleep'):
-            with self.assertRaisesRegex(RuntimeError, 'QOJ request failed') as error:
-                client.get('https://qoj.ac/submissions')
-        self.assertEqual(client.opener.open.call_count, 3)
-        self.assertNotIn('private-test-cookie', str(error.exception))
+        for failure in (URLError('private-test-cookie'), IncompleteRead(b'private-test-cookie')):
+            with self.subTest(failure=type(failure).__name__):
+                client = qoj.QojClient('private-test-cookie')
+                client.opener = Mock()
+                client.opener.open.side_effect = failure
+                with patch.object(qoj.time, 'sleep'):
+                    with self.assertRaisesRegex(RuntimeError, 'QOJ request failed') as error:
+                        client.get('https://qoj.ac/submissions')
+                self.assertEqual(client.opener.open.call_count, 3)
+                self.assertNotIn('private-test-cookie', str(error.exception))
 
     def test_problem_provenance_and_complete_contest_table(self):
         problem = qoj.parse_problem('''<html><body><aside><a href="/contest/999">Unrelated</a></aside><h2>#42. Example &amp; Test</h2><div><p>The problem was used in the following contests:</p><ul><li><a href="/contest/7">Example Contest</a></li></ul></div></body></html>''', 42)
