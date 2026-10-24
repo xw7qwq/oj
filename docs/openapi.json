@@ -6,12 +6,12 @@
     "description": "Read-only JSON hosted on GitHub Pages, schemaVersion=2. AtCoder, Codeforces, QOJ, and Nowcoder are enabled. Luogu is temporarily disabled, without requests, exports, or statistical contribution. Only contests with actual submissions are included. Total solved is the union of problem IDs in accepted and undatedSolved; the latter is currently empty. Nowcoder covers public coding practice only, with daily incremental collection and full checks every seven days, without guaranteed in-contest completeness. QOJ synchronizes with an authorized session. The public interface has no authentication, query filtering, pagination, or writes. HTTP 200 does not establish source freshness. This contract describes the current deployment; use the matching commit's contract for older snapshots.",
     "contact": {
       "name": "OJFlare repository",
-      "url": "https://github.com/xw7qwq/ojflare"
+      "url": "https://github.com/xw7qwq/oj"
     }
   },
   "externalDocs": {
     "description": "Fields, usage examples, upstream collection, and failure handling",
-    "url": "https://github.com/xw7qwq/ojflare/blob/main/docs/API.md"
+    "url": "https://github.com/xw7qwq/oj/blob/main/docs/API.md"
   },
   "servers": [
     {

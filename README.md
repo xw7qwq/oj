@@ -2,11 +2,11 @@
 
 **Lucius7's cross-platform programming practice journal.** A static dashboard combines public AtCoder, Codeforces, QOJ, and Nowcoder practice records to show cumulative solving trends, daily accepted (AC) submissions, ratings, and contest progress.
 
-[![Sync and deploy](https://github.com/xw7qwq/ojflare/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/xw7qwq/ojflare/actions/workflows/pages.yml)
+[![Sync and deploy](https://github.com/xw7qwq/oj/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/xw7qwq/oj/actions/workflows/pages.yml)
 
-[Website](https://ojflare.lucius7.dev) · [API documentation](docs/API.md) · [OpenAPI 3.1](docs/openapi.json) · [Public data](https://ojflare.lucius7.dev/data/dashboard.json) · [Report an issue](https://github.com/xw7qwq/ojflare/issues)
+[Website](https://ojflare.lucius7.dev) · [API documentation](docs/API.md) · [OpenAPI 3.1](docs/openapi.json) · [Public data](https://ojflare.lucius7.dev/data/dashboard.json) · [Report an issue](https://github.com/xw7qwq/oj/issues)
 
-OJFlare uses the custom domain **[ojflare.lucius7.dev](https://ojflare.lucius7.dev)**. Algorithm source code lives in [CodeFlare](https://github.com/xw7qwq/codeflare) ([codeflare.lucius7.dev](https://codeflare.lucius7.dev)). The repositories maintain the source archive and solving statistics separately.
+OJFlare uses the custom domain **[ojflare.lucius7.dev](https://ojflare.lucius7.dev)**. Algorithm source code lives in [CodeFlare](https://github.com/xw7qwq/solutions) ([codeflare.lucius7.dev](https://codeflare.lucius7.dev)). The repositories maintain the source archive and solving statistics separately.
 
 ## Contents
 
@@ -50,8 +50,8 @@ See [upstream data collection](docs/API.md#upstream-data-collection) for sources
 Requires **Git, Node.js 24+ (including npm), and Python 3.11+**. CI uses Node.js 24 from `.nvmrc` and Python 3.12. No `npm install` or `pip install` step is needed.
 
 ```sh
-git clone https://github.com/xw7qwq/ojflare.git
-cd ojflare
+git clone https://github.com/xw7qwq/oj.git
+cd oj
 npm run dev
 ```
 
@@ -70,7 +70,7 @@ Open [http://127.0.0.1:4173](http://127.0.0.1:4173), and stop the server with `C
 Snapshots on `main` are the offline development baseline. The latest automated results live on the permanent `data/snapshots` branch. To reproduce online data, restore caches and public JSON with the following commands. This replaces local snapshots, so save uncommitted manual imports first.
 
 ```sh
-git clone --single-branch --branch data/snapshots https://github.com/xw7qwq/ojflare.git .snapshots
+git clone --single-branch --branch data/snapshots https://github.com/xw7qwq/oj.git .snapshots
 rsync -a --delete .snapshots/data/sources/ data/sources/
 cp .snapshots/public/data/dashboard.json public/data/dashboard.json
 ```
@@ -219,7 +219,7 @@ tests/                   # JavaScript and Python tests
 
 ## Development and contributions
 
-Use [issues](https://github.com/xw7qwq/ojflare/issues) to report problems or [pull requests](https://github.com/xw7qwq/ojflare/pulls) to improve presentation, documentation, and data handling. Read [CONTRIBUTING.md](CONTRIBUTING.md) for branch and review requirements.
+Use [issues](https://github.com/xw7qwq/oj/issues) to report problems or [pull requests](https://github.com/xw7qwq/oj/pulls) to improve presentation, documentation, and data handling. Read [CONTRIBUTING.md](CONTRIBUTING.md) for branch and review requirements.
 
 - For data issues, include the platform, problem or contest link, expected behavior, and reproduction steps. Do not include credentials or submission source code.
 - When changing the statistics model or synchronizer, add relevant boundary tests and run `npm test` and `npm run build`. The PR workflow runs both checks.

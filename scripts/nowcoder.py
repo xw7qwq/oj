@@ -71,7 +71,7 @@ class Client:
             time.sleep(pause)
         self.last_request = time.monotonic()
         self.requests += 1
-        request = Request(url, headers={"Accept": "text/html", "User-Agent": "OJFlare/1.0 (+https://github.com/xw7qwq/ojflare)"})
+        request = Request(url, headers={"Accept": "text/html", "User-Agent": "OJFlare/1.0 (+https://github.com/xw7qwq/oj)"})
         try:
             with self.opener.open(request, timeout=40) as response:
                 body = response.read(2_000_001)
