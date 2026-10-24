@@ -45,7 +45,7 @@ class Client:
             if delay > 0:
                 time.sleep(delay)
             self.last_request[host] = time.monotonic()
-            request = Request(url, headers={"User-Agent": "OJFlare/1.0 (+https://github.com/xw7qwq/ojflare)", "Accept": "application/json" if as_json else "text/html"})
+            request = Request(url, headers={"User-Agent": "OJFlare/1.0 (+https://github.com/xw7qwq/oj)", "Accept": "application/json" if as_json else "text/html"})
             try:
                 with urlopen(request, timeout=45) as response:
                     value = response.read().decode("utf-8")

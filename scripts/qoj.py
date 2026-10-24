@@ -84,7 +84,7 @@ class QojClient:
         return client
 
     def _headers(self):
-        headers = {"Accept": "text/html", "Accept-Language": "en", "User-Agent": "OJFlare/1.0 (+https://github.com/xw7qwq/ojflare)"}
+        headers = {"Accept": "text/html", "Accept-Language": "en", "User-Agent": "OJFlare/1.0 (+https://github.com/xw7qwq/oj)"}
         if self.cookie:
             headers["Cookie"] = self.cookie
         return headers
