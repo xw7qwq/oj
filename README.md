@@ -241,3 +241,7 @@ The page loads the [avatar for QQ 3012967200](https://q1.qlogo.cn/g?b=qq&nk=3012
 ## License and data ownership
 
 This repository does not currently include a `LICENSE` file. Upstream problems, platform data, and avatars remain subject to their respective owners' rights.
+
+## Panel entry point
+
+HTML navigation redirects to [https://lucius7.dev/oj/](https://lucius7.dev/oj/), preserving the query string and fragment for existing reader links. The public JSON snapshots keep their existing URLs and publication workflow. Publish this change only after the panel root domain and owner login are verified.
