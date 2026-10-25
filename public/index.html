@@ -2,52 +2,14 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>刷题记录 · Lucius7</title>
+    <link rel="canonical" href="https://lucius7.dev/oj/" />
+    <!-- 页面已经并入面板；这里只保留数据（/data/），旧链接带着查询参数和锚点跳过去。 -->
     <script src="./panel-redirect.js"></script>
     <noscript><meta http-equiv="refresh" content="0; url=https://lucius7.dev/oj/" /></noscript>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#17191e" />
-    <meta name="description" content="Lucius7 的 AtCoder、Codeforces、QOJ 与牛客做题记录：每日 AC、比赛完成进度与已通过题目清单。" />
-    <title>OJFlare · Lucius7 的解题日志</title>
-    <link rel="canonical" href="https://lucius7.dev/oj/" />
-    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20260908-matrix" />
-    <script type="module" src="./app.js?v=20260908-matrix"></script>
   </head>
   <body>
-    <a href="#main" class="skip-link">跳到做题记录</a>
-    <div class="shell">
-      <header class="site-header">
-        <div class="profile-heading"><span class="avatar"><img src="https://q1.qlogo.cn/g?b=qq&amp;nk=3012967200&amp;s=100" alt="Lucius7 的 QQ 头像" width="64" height="64" decoding="async" referrerpolicy="no-referrer" /><span></span></span><div><h1>OJFlare</h1><p>Lucius7 · AC JOURNAL</p></div></div>
-        <div class="source-links"><a href="https://kenkoooo.com/atcoder/#/table/Lucius7" target="_blank" rel="noopener noreferrer">AtCoder Problems ↗</a><a href="https://cftracker.netlify.app/contests" target="_blank" rel="noopener noreferrer">CFTracker ↗</a><a href="https://github.com/xw7qwq/oj" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div>
-      </header>
-      <main id="main">
-        <header class="topbar"><span>四个平台 · 每天 08:17（UTC+8）</span><span id="sync-label" role="status">正在读取记录…</span></header>
-        <div id="load-error" class="error-banner" role="alert" hidden></div>
-        <div id="dashboard" hidden>
-          <section id="overview" class="overview section-anchor">
-            <div class="section-title"><div><p class="eyebrow">每一道 AC，都算数</p><h2>解题日志<span class="heading-dot">.</span></h2></div><div class="segmented" id="platform-filter" role="group" aria-label="平台筛选"><button type="button" data-platform="all" aria-pressed="true">全部平台</button><button type="button" data-platform="atcoder" aria-pressed="false">AtCoder</button><button type="button" data-platform="codeforces" aria-pressed="false">Codeforces</button><button type="button" data-platform="qoj" aria-pressed="false">QOJ</button><button type="button" data-platform="nowcoder" aria-pressed="false">牛客</button></div></div>
-            <div id="source-alerts" aria-live="polite"></div>
-            <section id="stats" class="panel trend-panel" aria-label="累计解题趋势"></section>
-            <div class="profiles" id="profiles"></div>
-            <section class="panel activity-panel" aria-labelledby="activity-title">
-              <div class="panel-heading"><div><h3 id="activity-title">AC 足迹</h3><p id="activity-summary"></p></div><label class="select-wrap">年份 <select id="year-select" aria-label="热力图年份"></select></label></div>
-              <div class="heatmap-scroll"><div id="heatmap" class="heatmap" aria-label="每日首次 AC 热力图"></div></div>
-              <div class="heatmap-footer"><span>点击日期，查看当天解开的题目</span><div class="heatmap-legend"><span>少</span><i data-level="0"></i><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i><span>多</span></div></div>
-            </section>
-          </section>
-          <section id="daily" class="section-anchor">
-            <div class="section-title compact"><div><p class="eyebrow">DAILY LOG</p><h2>每日记录</h2></div><div class="date-controls"><button type="button" id="prev-day" class="icon-button" aria-label="前一天">←</button><input type="date" id="date-select" aria-label="查看日期" /><button type="button" id="next-day" class="icon-button" aria-label="后一天">→</button><button type="button" id="today-button" class="text-button">今天</button></div></div>
-            <div class="panel daily-panel"><div class="panel-heading"><div><h3 id="daily-title"></h3><p id="daily-summary"></p></div><div class="segmented small" id="activity-filter" role="group" aria-label="记录类型"><button type="button" data-mode="first" aria-pressed="true">首次 AC</button><button type="button" data-mode="all" aria-pressed="false">全部 AC</button></div></div><div id="daily-list"></div></div>
-          </section>
-          <section id="contests" class="section-anchor">
-            <div class="section-title compact"><div><p class="eyebrow">CONTEST TRACKER</p><h2>比赛记录</h2></div><span class="progress-legend"><i class="solved-key"></i>已 AC <i class="attempted-key"></i>尝试过 <i class="unseen-key"></i>未完成</span></div>
-            <p class="scope-note">只展示有提交记录的比赛。</p>
-            <div class="panel contests-panel"><div class="contest-toolbar"><label class="search-field"><span aria-hidden="true">⌕</span><input type="search" id="contest-search" placeholder="搜索比赛 / 题目" aria-label="搜索比赛或题目" /></label><div class="contest-selects"><select id="contest-kind" aria-label="比赛类别"><option value="all">所有类别</option></select><select id="contest-status" aria-label="比赛完成状态"><option value="all">不限进度</option><option value="completed">已全部通过</option><option value="unfinished">尚未全过</option></select></div></div><div class="table-scroll" tabindex="0" role="region" aria-label="有提交记录的比赛，横向滚动查看全部题目"><table class="contest-matrix" id="contest-matrix"><caption class="sr-only">比赛按行排列，题目按 A、B、C 等题号对齐；绿色表示已 AC，黄色表示尝试过。</caption><thead><tr id="contest-columns"></tr></thead><tbody id="contest-rows"></tbody></table></div><div class="pagination"><span id="contest-count"></span><div><button type="button" id="prev-page" class="text-button">← 上一页</button><span id="page-label"></span><button type="button" id="next-page" class="text-button">下一页 →</button></div></div></div>
-          </section>
-          <footer><p>首次 AC 按平台 + 题目去重；全部 AC 包含重复通过。日期按 UTC+8 归档。</p><p>AtCoder Problems · Codeforces · <a href="https://qoj.ac" target="_blank" rel="noopener noreferrer">QOJ</a> · <a href="https://ac.nowcoder.com/acm/contest/profile/423062492" target="_blank" rel="noopener noreferrer">牛客</a><span> / </span><a href="https://github.com/xw7qwq/oj/actions" target="_blank" rel="noopener noreferrer">同步状态 ↗</a></p></footer>
-        </div>
-        <div id="loading" class="loading-state"><span class="loader"></span><p>正在整理 Lucius7 的 AC 记录…</p></div>
-      </main>
-    </div>
+    <p>刷题记录在 <a href="https://lucius7.dev/oj/">lucius7.dev/oj</a>。</p>
   </body>
 </html>

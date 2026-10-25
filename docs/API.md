@@ -1,8 +1,8 @@
-# OJFlare API and data collection
+# oj API and data collection
 
 [Back to README](../README.md) · [OpenAPI 3.1 contract](openapi.json) · [Live snapshot](https://ojflare.lucius7.dev/data/dashboard.json)
 
-This document describes the current `schemaVersion: 2` deployment with AtCoder, Codeforces, QOJ, and Nowcoder enabled. **Luogu is temporarily disabled: it is not requested, exported, or counted. The contest array contains only contests in which the user has actual submissions.** The v2 `undatedSolved` field remains for compatibility and is currently empty. General clients should still calculate total solved problems as its union with the problem IDs in `accepted`. Implementation references: [synchronizer](../scripts/sync.py), [frontend statistics model](../public/model.js), and [deployment workflow](../.github/workflows/pages.yml). Upstream interface documentation was checked on 2026-09-08.
+This document describes the current `schemaVersion: 2` deployment with AtCoder, Codeforces, QOJ, and Nowcoder enabled. **Luogu is temporarily disabled: it is not requested, exported, or counted. The contest array contains only contests in which the user has actual submissions.** The v2 `undatedSolved` field remains for compatibility and is currently empty. General clients should still calculate total solved problems as its union with the problem IDs in `accepted`. Implementation references: [synchronizer](../scripts/sync.py), [statistics model](../scripts/model.mjs), and [deployment workflow](../.github/workflows/pages.yml). Upstream interface documentation was checked on 2026-09-08.
 
 <a id="目录"></a>
 
@@ -23,7 +23,7 @@ This document describes the current `schemaVersion: 2` deployment with AtCoder, 
 
 ### GET /data/dashboard.json
 
-The production base URL is `https://ojflare.lucius7.dev`; the full endpoint is [dashboard.json](https://ojflare.lucius7.dev/data/dashboard.json). After starting `npm run dev`, use the [local JSON endpoint](http://127.0.0.1:4173/data/dashboard.json).
+The production base URL is `https://ojflare.lucius7.dev`; the full endpoint is [dashboard.json](https://ojflare.lucius7.dev/data/dashboard.json). Locally, `npm run build` writes the same files to `dist/data/`.
 
 | Item | Contract |
 | --- | --- |
@@ -36,7 +36,7 @@ The production base URL is `https://ojflare.lucius7.dev`; the full endpoint is [
 | Pagination / filtering | Returns the entire snapshot; platform, date, and contest filtering happen in the client |
 | Writes | No application endpoint for writes, live queries, or remotely triggering synchronization |
 
-GitHub Pages hosts static files. Parameters such as `?handle=...` or `?date=...` do not switch users, filter records, or refresh upstream data. The production site uses the custom domain root, with the public path `/data/dashboard.json`. The site itself uses `./data/dashboard.json`, which also supports local previews or static hosting under a subpath.
+GitHub Pages hosts static files. Parameters such as `?handle=...` or `?date=...` do not switch users, filter records, or refresh upstream data. The production site uses the custom domain root, with the public path `/data/dashboard.json`. The root page only redirects to [lucius7.dev/oj/](https://lucius7.dev/oj/); the data paths are unaffected.
 
 Check the HTTP status before parsing JSON. Pages 404s and network errors do not have a project-defined JSON error body. HTTP 200 can include old data retained after upstream failures, so inspect `sources`. GitHub Pages manages caching and response headers. This project has no separate client quota, forced-refresh endpoint, or real-time availability guarantee. Reuse snapshots and avoid frequent polling.
 
@@ -57,7 +57,7 @@ A compact companion to the dashboard, built by `npm run build` from the same sna
 | `monthly` | First ACs per month: `total` plus one key per platform |
 | `recent` | The 30 latest accepted submissions, newest first, with `first` marking first ACs |
 
-The same rules as the browser model apply: first ACs are deduplicated per platform problem, Luogu is excluded, and days use UTC+8.
+The same rules as the panel's statistics apply: first ACs are deduplicated per platform problem, Luogu is excluded, and days use UTC+8.
 
 <a id="数据获取方式"></a>
 
@@ -335,7 +335,7 @@ const progress = data.contests.filter(contest => contest.hasSubmissions === true
 console.table(progress);
 ```
 
-The page matrix uses one row per contest and aligns problem-name links by A / B / C. CF subproblems such as A1 / A2 retain individual links in one column; AtCoder H / Ex share a column, and missing positions stay blank. Green means accepted; yellow means attempted without acceptance. Progress filters never add contests without submissions.
+The panel's contest matrix uses one row per contest and aligns problem-name links by A / B / C. CF subproblems such as A1 / A2 retain individual links in one column; AtCoder H / Ex share a column, and missing positions stay blank. Green means accepted; yellow means attempted without acceptance. Progress filters never add contests without submissions.
 
 Incomplete catalogs display `solved / ?`. Solving a shared AtCoder problem in another contest contributes progress, but a contest with no submissions is omitted from the public `contests` array. Internal full catalogs can retain contests with `hasSubmissions: false`. Do not assume `Problem.contestId` refers to an exported contest. Codeforces cross-division problems retain their own IDs without CFTracker's shared-problem inference.
 
@@ -475,7 +475,7 @@ This uses public HTML, not a stable personal API promised by Nowcoder. The [cont
 
 ### Luogu: temporarily disabled historical implementation
 
-The source is [Lucius7's public practice page](https://www.luogu.com.cn/user/571082/practice), UID `571082`. It provides solved problem lists without individual AC timestamps. The user chose to disable it temporarily: **online sync, offline rebuilding, and daily Actions neither contact Luogu nor read its snapshots into public data**. The page has no Luogu filter or undated problem list. The historical 547 solved problems without timestamps do not contribute to current totals.
+The source is [Lucius7's public practice page](https://www.luogu.com.cn/user/571082/practice), UID `571082`. It provides solved problem lists without individual AC timestamps. The user chose to disable it temporarily: **online sync, offline rebuilding, and daily Actions neither contact Luogu nor read its snapshots into public data**. The panel has no Luogu filter or undated problem list. The historical 547 solved problems without timestamps do not contribute to current totals.
 
 [`luogu.py`](../scripts/luogu.py), `data/sources/luogu.json`, and `luogu-request.json` remain as internal historical implementation and records. The original adapter read the public practice page's initial HTML at most once per UTC day, parsing `data.passed` / `data.submitted` / `data.user`, without a personal-history API, pagination, or cookies. Access denial, redirects, or unexpected structure paused collection. The current entry point is disabled; changing request state does not re-enable it.
 
@@ -555,7 +555,7 @@ Platform snapshots are written to temporary files and atomically replaced separa
 Check freshness separately through:
 
 1. Whether `sources[platform].error` is nonempty.
-2. The age of `sources[platform].lastSuccess`; the page warns after 36 hours.
+2. The age of `sources[platform].lastSuccess`; the panel warns after 36 hours.
 3. Whether `warnings` describes optional-data problems; inspect `profile.lastSuccess` for rating freshness.
 
 `collectionMethod: "browser_import"` means the current data still comes from manual collection; successful QOJ authenticated sync changes it to `authenticated_http`. When daily budgets skip requests or access stops, aggregate generation time is not a new collection time. `generatedAt` only records aggregation. AtCoder Problems can lag live AtCoder submissions, so upstream delays still apply after a successful project sync.
