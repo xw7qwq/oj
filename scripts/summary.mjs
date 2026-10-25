@@ -1,6 +1,6 @@
 // Compact statistics for the panel (lucius7.dev/oj/). The full dashboard.json is
 // ~5 MB; this file stays small enough for the panel's Worker to parse on each request.
-import { ACTIVE_PLATFORMS, PLATFORM_NAMES, activeDashboard, dailyCounts, dateKey, firstAccepted, shiftDay, solvedProblemIds, streaks } from '../public/model.js';
+import { ACTIVE_PLATFORMS, PLATFORM_NAMES, activeDashboard, dailyCounts, dateKey, firstAccepted, shiftDay, solvedProblemIds, streaks } from './model.mjs';
 
 export const SUMMARY_SCHEMA_VERSION = 1;
 export const RECENT_LIMIT = 30;

@@ -1,16 +1,16 @@
-# OJFlare
+# oj
 
-**Lucius7's cross-platform programming practice journal.** A static dashboard combines public AtCoder, Codeforces, QOJ, and Nowcoder practice records to show cumulative solving trends, daily accepted (AC) submissions, ratings, and contest progress.
+**Lucius7's cross-platform programming practice records, collected for the [panel](https://lucius7.dev/oj/).** A daily GitHub Actions job combines public AtCoder, Codeforces, QOJ, and Nowcoder records into two JSON files on GitHub Pages. The panel's [刷题](https://lucius7.dev/oj/) page, home page, API, and MCP tools read them. This repository no longer has a page of its own.
 
 [![Sync and deploy](https://github.com/xw7qwq/oj/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/xw7qwq/oj/actions/workflows/pages.yml)
 
-[Website](https://ojflare.lucius7.dev) · [API documentation](docs/API.md) · [OpenAPI 3.1](docs/openapi.json) · [Public data](https://ojflare.lucius7.dev/data/dashboard.json) · [Report an issue](https://github.com/xw7qwq/oj/issues)
+[Panel](https://lucius7.dev/oj/) · [API documentation](docs/API.md) · [OpenAPI 3.1](docs/openapi.json) · [dashboard.json](https://ojflare.lucius7.dev/data/dashboard.json) · [summary.json](https://ojflare.lucius7.dev/data/summary.json) · [Report an issue](https://github.com/xw7qwq/oj/issues)
 
-OJFlare uses the custom domain **[ojflare.lucius7.dev](https://ojflare.lucius7.dev)**. Algorithm source code lives in [CodeFlare](https://github.com/xw7qwq/solutions) ([codeflare.lucius7.dev](https://codeflare.lucius7.dev)). The repositories maintain the source archive and solving statistics separately.
+The data is published at **ojflare.lucius7.dev/data/**. The old page at [ojflare.lucius7.dev](https://ojflare.lucius7.dev) redirects to [lucius7.dev/oj/](https://lucius7.dev/oj/), keeping the query string and fragment. Algorithm source code lives in [solutions](https://github.com/xw7qwq/solutions), which the panel shows at [lucius7.dev/oj/code/](https://lucius7.dev/oj/code/).
 
 ## Contents
 
-- [Features](#features)
+- [Published files](#published-files)
 - [Platforms and data coverage](#platforms-and-data-coverage)
 - [Quick start](#quick-start)
 - [Configuration and data updates](#configuration-and-data-updates)
@@ -22,14 +22,15 @@ OJFlare uses the custom domain **[ojflare.lucius7.dev](https://ojflare.lucius7.d
 - [Data sources and acknowledgments](#data-sources-and-acknowledgments)
 - [License and data ownership](#license-and-data-ownership)
 
-## Features
+## Published files
 
-- **Solving trends**: cumulative first-AC charts and summaries for today, this month, and solving streaks. Explore dates with a mouse, touch, or arrow keys.
-- **Daily records**: heatmaps by platform and year, with problems, difficulty, and submission times for each date. Switch between first ACs and all ACs.
-- **Profile**: solved counts per platform, current and peak AtCoder / Codeforces ratings, and current Nowcoder rating.
-- **Contest progress**: only contests with actual submissions appear. Problems align by A / B / C, with accepted, attempted, and unfinished states, plus filters for category, completion, and problem search.
-- **Automatic synchronization**: GitHub Actions updates data daily. Successful snapshots are preserved where possible after upstream failures, and the page displays source status.
-- **Static deployment**: plain HTML / CSS / JavaScript frontend and a Python standard-library synchronizer, with no database or third-party runtime dependencies. Public JSON can be used independently.
+| File | Size | Contents | Read by |
+| --- | --- | --- | --- |
+| [`/data/dashboard.json`](https://ojflare.lucius7.dev/data/dashboard.json) | about 5 MB | The complete snapshot: problems, accepted submissions, contests, ratings, and source state | The panel's 刷题 page through `/api/v1/oj/dashboard`; trends, the calendar, daily records, and contest progress are computed in the browser |
+| [`/data/summary.json`](https://ojflare.lucius7.dev/data/summary.json) | about 20 KB | Totals, per-platform counts, streaks, daily and monthly counts, and recent ACs | The panel's home page, `/api/v1/oj/summary`, and its MCP tools |
+
+- **Automatic synchronization**: GitHub Actions updates data daily. Successful snapshots are preserved where possible after upstream failures, and each source's state is published for the panel to display.
+- **No runtime dependencies**: a Python standard-library synchronizer and a Node.js build step, with no database. The JSON can be used independently.
 
 ## Platforms and data coverage
 
@@ -41,7 +42,7 @@ OJFlare uses the custom domain **[ojflare.lucius7.dev](https://ojflare.lucius7.d
 | Nowcoder | Public coding-practice pages without authentication | Practice submissions and current rating for UID `423062492` / `theLucius7`; no contest progress |
 | Luogu | Temporarily disabled | No requests, exports, or statistical contribution; only historical internal adapters and snapshots remain |
 
-The dashboard currently displays Lucius7's accounts. Enabled platforms are `atcoder`, `codeforces`, `qoj`, and `nowcoder`. Nowcoder data is explicitly labeled `practice_coding`; whether its practice list includes in-contest submissions has not been confirmed. Private, hidden, inaccessible, or upstream-unlisted records are outside the scope.
+The data currently covers Lucius7's accounts. Enabled platforms are `atcoder`, `codeforces`, `qoj`, and `nowcoder`. Nowcoder data is explicitly labeled `practice_coding`; whether its practice list includes in-contest submissions has not been confirmed. Private, hidden, inaccessible, or upstream-unlisted records are outside the scope.
 
 See [upstream data collection](docs/API.md#upstream-data-collection) for sources and access methods.
 
@@ -52,18 +53,18 @@ Requires **Git, Node.js 24+ (including npm), and Python 3.11+**. CI uses Node.js
 ```sh
 git clone https://github.com/xw7qwq/oj.git
 cd oj
-npm run dev
+npm test
+npm run build
 ```
 
-Open [http://127.0.0.1:4173](http://127.0.0.1:4173), and stop the server with `Ctrl+C`. The repository includes generated snapshots; local preview does not synchronize upstream records.
+The repository includes generated snapshots, so tests and the build run offline. To see the data rendered, run the [panel](https://github.com/xw7qwq/panel) locally with `OJ_DATA_BASE` pointing at a server for `dist/data/`.
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Preview `public/` at `127.0.0.1:4173` |
 | `npm run sync` | Synchronize enabled platforms online and generate `public/data/dashboard.json` |
 | `python3 scripts/sync.py --offline` | Rebuild the aggregate using existing platform snapshots, without network requests |
 | `npm test` | Run JavaScript and Python tests |
-| `npm run build` | Validate public data and write the static site to `dist/` |
+| `npm run build` | Validate public data and write the published files to `dist/` |
 
 `npm run build` does not fetch fresh data. `dist/` is generated output and is not committed to Git.
 
@@ -94,7 +95,7 @@ Configure them under **Settings → Secrets and variables → Actions**. Environ
 
 Browser sessions are not automatically passed to Actions. In cookie-only mode, update `QOJ_COOKIE` when it expires. Two-factor authentication, human verification, denied access, or rejected credentials stop QOJ synchronization while preserving its last successful snapshot. Do not put passwords or cookies in source code, data files, or commits. See the [login configuration guide](docs/API.md#configuring-daily-qoj-synchronization).
 
-The project does not yet provide general multi-user configuration. To change accounts in a fork, update `HANDLE` in the [synchronizer](scripts/sync.py), `UID` / `HANDLE` in the [Nowcoder adapter](scripts/nowcoder.py), and personal links in the [page](public/index.html). Replace the previous user's snapshots, then synchronize, test, and build. QOJ's `QOJ_HANDLE` must match the corresponding snapshot account.
+The project does not yet provide general multi-user configuration. To change accounts in a fork, update `HANDLE` in the [synchronizer](scripts/sync.py) and `UID` / `HANDLE` in the [Nowcoder adapter](scripts/nowcoder.py). Replace the previous user's snapshots, then synchronize, test, and build. QOJ's `QOJ_HANDLE` must match the corresponding snapshot account.
 
 ### Synchronization and failure handling
 
@@ -110,7 +111,7 @@ Each platform atomically replaces its snapshot after validation. Aggregated resu
 | Rating, estimated difficulty, or Gym problem-list fetch fails | Record a separate warning; available data can still be published |
 | `--offline` is used | Rebuild the aggregate from existing records and preserve source collection times; this does not mean upstream data was refreshed |
 
-The page uses each platform's `lastSuccess` to assess freshness and warns after 36 hours. `generatedAt` is only the aggregation time. If a core source is degraded, the workflow deploys available data before reporting failure so maintainers can investigate. See [errors and freshness](docs/API.md#errors-and-freshness) for the complete fallback rules.
+The panel uses each platform's `lastSuccess` to assess freshness and warns after 36 hours. `generatedAt` is only the aggregation time. If a core source is degraded, the workflow deploys available data before reporting failure so maintainers can investigate. See [errors and freshness](docs/API.md#errors-and-freshness) for the complete fallback rules.
 
 Nowcoder request budgets and pause state are stored in `data/sources/nowcoder-request.json`. See [Nowcoder data](docs/API.md#nowcoder-public-coding-practice-submissions) when investigating collection coverage, budgets, or pause reasons. Formats and commands for importing saved browser data are in the [manual import guide](docs/API.md#manually-importing-saved-browser-data). Importing or changing historical Luogu state does not re-enable its public integration.
 
@@ -158,7 +159,7 @@ Shared AtCoder problems use the same problem ID. Codeforces uses `contestId + in
 
 ## Deployment
 
-The production site is **[ojflare.lucius7.dev](https://ojflare.lucius7.dev)**, published through GitHub Pages. The [sync and deployment workflow](.github/workflows/pages.yml) runs:
+The data is published to **[ojflare.lucius7.dev/data/](https://ojflare.lucius7.dev/data/summary.json)** through GitHub Pages, next to a one-file page that redirects to the panel. The [sync and deployment workflow](.github/workflows/pages.yml) runs:
 
 - Daily at **08:17 (Asia/Taipei / UTC+8)**, with cron `17 0 * * *`; queueing may delay the actual start.
 - On pushes to `main`.
@@ -171,7 +172,7 @@ flowchart LR
     C --> J[dashboard.json]
     J --> B[Static build dist/]
     B --> P[GitHub Pages]
-    P --> U[Dashboard and API consumers]
+    P --> U[Panel and API consumers]
 ```
 
 The workflow checks out `main` source and `data/snapshots` data separately. It restores current snapshots and request budgets, then tests, synchronizes, writes to the data branch, builds, and publishes. The data branch contains only `data/sources/` and `public/data/dashboard.json`, retaining successful data and fallback state after upstream failures. The source checkout does not persist Git credentials, and automation does not write directly to `main`. Data commits do not trigger workflows whose push filters match only `main`, so no CI-skip marker is needed.
@@ -182,11 +183,11 @@ The workflow checks out `main` source and `data/snapshots` data separately. It r
 2. Select **GitHub Actions** under **Settings → Pages → Build and deployment → Source**.
 3. Enable Actions and allow the declared workflow permissions: the build job writes data only to `data/snapshots`; the deployment job writes to Pages and obtains an OIDC identity token. `main` can require PRs and checks. The data branch allows normal `GITHUB_TOKEN` pushes while prohibiting force pushes and deletion, with no need to bypass main-branch rules.
 4. Configure QOJ secrets / variables as needed, dispatch deployment, and find the URL in the `github-pages` environment.
-5. For a custom domain, configure **Settings → Pages → Custom domain**, DNS, and HTTPS. Update `public/CNAME`, the page canonical URL, README, and public URLs in the API documentation together.
+5. For a custom domain, configure **Settings → Pages → Custom domain**, DNS, and HTTPS. Update `public/CNAME`, README, and public URLs in the API documentation together. Point the redirect in `public/index.html` and `public/panel-redirect.js` at your own page, or remove it.
 
 The workflow uses GitHub's automatic `GITHUB_TOKEN`; no additional personal token is required. Check that scheduled workflows are enabled after forking. Schedules may be disabled in public repositories after extended inactivity. See [custom Pages workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), [custom domains](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site), and [schedule behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
 
-You can also publish the complete `dist/` output from `npm run build` to another static host. Data synchronization must still run separately.
+You can also publish the `dist/` output from `npm run build` to another static host. Data synchronization must still run separately.
 
 ## Project layout
 
@@ -200,12 +201,9 @@ docs/
   openapi.json           # OpenAPI 3.1 contract
 public/
   CNAME                  # Custom domain, copied to dist/ during build
-  index.html             # Page layout, profile, and source links
-  app.js                 # Interaction and rendering
-  model.js               # Dates, first ACs, streaks, and contest progress
-  trend.js               # Cumulative solving chart
-  styles.css             # Page styles
-  data/dashboard.json    # Snapshot consumed by the browser and API clients
+  index.html             # Redirect to lucius7.dev/oj/
+  panel-redirect.js      # Keeps the query string and fragment when redirecting
+  data/dashboard.json    # Snapshot consumed by the panel and API clients
 scripts/
   sync.py                # Sync entry point, normalization, validation, and aggregation
   qoj.py                 # QOJ submission and contest HTML parsing
@@ -213,13 +211,15 @@ scripts/
   import_browser.py      # Offline import entry point for saved browser data
   qoj_import.py          # QOJ offline data normalization
   luogu.py               # Historical Luogu adapter, currently disabled
-  build.mjs              # Data validation and static build
+  model.mjs              # Dates, first ACs, and streaks for summary.json
+  summary.mjs            # Compact statistics for the panel
+  build.mjs              # Data validation and build
 tests/                   # JavaScript and Python tests
 ```
 
 ## Development and contributions
 
-Use [issues](https://github.com/xw7qwq/oj/issues) to report problems or [pull requests](https://github.com/xw7qwq/oj/pulls) to improve presentation, documentation, and data handling. Read [CONTRIBUTING.md](CONTRIBUTING.md) for branch and review requirements.
+Use [issues](https://github.com/xw7qwq/oj/issues) to report problems or [pull requests](https://github.com/xw7qwq/oj/pulls) to improve documentation and data handling. Presentation lives in the [panel](https://github.com/xw7qwq/panel). Read [CONTRIBUTING.md](CONTRIBUTING.md) for branch and review requirements.
 
 - For data issues, include the platform, problem or contest link, expected behavior, and reproduction steps. Do not include credentials or submission source code.
 - When changing the statistics model or synchronizer, add relevant boundary tests and run `npm test` and `npm run build`. The PR workflow runs both checks.
@@ -236,7 +236,7 @@ Use [issues](https://github.com/xw7qwq/oj/issues) to report problems or [pull re
 - [Nowcoder public coding practice](https://ac.nowcoder.com/acm/contest/profile/423062492/practice-coding): submission verdicts, problem IDs, names, and timestamps.
 - [Luogu public practice page](https://www.luogu.com.cn/user/571082/practice): historical snapshot source without AC times; currently disabled.
 
-The page loads the [avatar for QQ 3012967200](https://q1.qlogo.cn/g?b=qq&nk=3012967200&s=100) through Tencent's `q1.qlogo.cn`. Public data stores only the problem and submission metadata needed for display, without submission source code or credentials.
+Public data stores only the problem and submission metadata needed for display, without submission source code or credentials.
 
 ## License and data ownership
 

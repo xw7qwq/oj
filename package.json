@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "python3 -m http.server 4173 --bind 127.0.0.1 --directory public",
     "sync": "python3 scripts/sync.py",
     "build": "node scripts/build.mjs",
     "test": "node --test tests/*.test.mjs && python3 -m unittest discover -s tests -p 'test_*.py'"
