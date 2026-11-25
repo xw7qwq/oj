@@ -36,13 +36,13 @@ The production base URL is `https://ojflare.lucius7.dev`; the full endpoint is [
 | Pagination / filtering | Returns the entire snapshot; platform, date, and contest filtering happen in the client |
 | Writes | No application endpoint for writes, live queries, or remotely triggering synchronization |
 
-GitHub Pages hosts static files. Parameters such as `?handle=...` or `?date=...` do not switch users, filter records, or refresh upstream data. The production site uses the custom domain root, with the public path `/data/dashboard.json`. The root page only redirects to [lucius7.dev/oj/](https://lucius7.dev/oj/); the data paths are unaffected.
+GitHub Pages hosts static files. Parameters such as `?handle=...` or `?date=...` do not switch users, filter records, or refresh upstream data. The production site uses the custom domain root, with the public path `/data/dashboard.json`. The root page only redirects to [panel.lucius7.dev/oj/](https://panel.lucius7.dev/oj/); the data paths are unaffected.
 
 Check the HTTP status before parsing JSON. Pages 404s and network errors do not have a project-defined JSON error body. HTTP 200 can include old data retained after upstream failures, so inspect `sources`. GitHub Pages manages caching and response headers. This project has no separate client quota, forced-refresh endpoint, or real-time availability guarantee. Reuse snapshots and avoid frequent polling.
 
 ### GET /data/summary.json
 
-A compact companion to the dashboard, built by `npm run build` from the same snapshot and deployed with it. The [lucius7.dev panel](https://lucius7.dev/oj/) and its API read this file because it is about 20 KB instead of 5 MB. Full endpoint: [summary.json](https://ojflare.lucius7.dev/data/summary.json); schema: `Summary` in the [OpenAPI contract](openapi.json).
+A compact companion to the dashboard, built by `npm run build` from the same snapshot and deployed with it. The [panel](https://panel.lucius7.dev/oj/) and its API read this file because it is about 20 KB instead of 5 MB. Full endpoint: [summary.json](https://ojflare.lucius7.dev/data/summary.json); schema: `Summary` in the [OpenAPI contract](openapi.json).
 
 | Field | Meaning |
 | --- | --- |

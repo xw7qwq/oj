@@ -1,12 +1,12 @@
 # oj
 
-**Lucius7's cross-platform programming practice records, collected for the [panel](https://lucius7.dev/oj/).** A daily GitHub Actions job combines public AtCoder, Codeforces, QOJ, and Nowcoder records into two JSON files on GitHub Pages. The panel's [刷题](https://lucius7.dev/oj/) page, home page, API, and MCP tools read them. This repository no longer has a page of its own.
+**Lucius7's cross-platform programming practice records, collected for the [panel](https://panel.lucius7.dev/oj/).** A daily GitHub Actions job combines public AtCoder, Codeforces, QOJ, and Nowcoder records into two JSON files on GitHub Pages. The panel's [刷题](https://panel.lucius7.dev/oj/) page, home page, API, and MCP tools read them. This repository no longer has a page of its own.
 
 [![Sync and deploy](https://github.com/xw7qwq/oj/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/xw7qwq/oj/actions/workflows/pages.yml)
 
-[Panel](https://lucius7.dev/oj/) · [API documentation](docs/API.md) · [OpenAPI 3.1](docs/openapi.json) · [dashboard.json](https://ojflare.lucius7.dev/data/dashboard.json) · [summary.json](https://ojflare.lucius7.dev/data/summary.json) · [Report an issue](https://github.com/xw7qwq/oj/issues)
+[Panel](https://panel.lucius7.dev/oj/) · [API documentation](docs/API.md) · [OpenAPI 3.1](docs/openapi.json) · [dashboard.json](https://ojflare.lucius7.dev/data/dashboard.json) · [summary.json](https://ojflare.lucius7.dev/data/summary.json) · [Report an issue](https://github.com/xw7qwq/oj/issues)
 
-The data is published at **ojflare.lucius7.dev/data/**. The old page at [ojflare.lucius7.dev](https://ojflare.lucius7.dev) redirects to [lucius7.dev/oj/](https://lucius7.dev/oj/), keeping the query string and fragment. Algorithm source code lives in [solutions](https://github.com/xw7qwq/solutions), which the panel shows at [lucius7.dev/oj/code/](https://lucius7.dev/oj/code/).
+The data is published at **ojflare.lucius7.dev/data/**. The old page at [ojflare.lucius7.dev](https://ojflare.lucius7.dev) redirects to [panel.lucius7.dev/oj/](https://panel.lucius7.dev/oj/), keeping the query string and fragment. Algorithm source code lives in [solutions](https://github.com/xw7qwq/solutions), which the panel shows at [panel.lucius7.dev/oj/code/](https://panel.lucius7.dev/oj/code/).
 
 ## Contents
 
@@ -203,7 +203,7 @@ docs/
   openapi.json           # OpenAPI 3.1 contract
 public/
   CNAME                  # Custom domain, copied to dist/ during build
-  index.html             # Redirect to lucius7.dev/oj/
+  index.html             # Redirect to panel.lucius7.dev/oj/
   panel-redirect.js      # Keeps the query string and fragment when redirecting
   data/dashboard.json    # Snapshot consumed by the panel and API clients
 scripts/
