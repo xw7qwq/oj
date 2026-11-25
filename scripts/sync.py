@@ -15,7 +15,7 @@ import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
-from qoj import QojClient, collect as collect_qoj_records
+from qoj import AuthenticationRequired, LoginPageBlocked, QojClient, collect as collect_qoj_records
 import luogu
 import nowcoder
 
@@ -337,10 +337,18 @@ def collect_codeforces(client, previous):
 
 def collect_qoj(client, previous):
     username, password = os.environ.get("QOJ_USERNAME", ""), os.environ.get("QOJ_PASSWORD", "")
+    cookie = os.environ.get("QOJ_COOKIE", "")
     if username or password:
-        qoj_client = QojClient.from_credentials(username, password)
+        try:
+            qoj_client = QojClient.from_credentials(username, password)
+        except LoginPageBlocked as blocked:
+            # Nothing was posted. A session from a normal browser login can still read the history.
+            if not cookie:
+                raise AuthenticationRequired(f"{blocked}. Log in with a normal browser and configure QOJ_COOKIE") from None
+            print("QOJ login page needs a browser check; using the QOJ_COOKIE session instead", flush=True)
+            qoj_client = QojClient(cookie)
     else:
-        qoj_client = QojClient(os.environ.get("QOJ_COOKIE", ""))
+        qoj_client = QojClient(cookie)
     return make_snapshot("qoj", **collect_qoj_records(qoj_client, QOJ_HANDLE, previous), handle=QOJ_HANDLE)
 
 

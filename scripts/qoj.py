@@ -22,6 +22,10 @@ class AuthenticationRequired(RuntimeError):
     pass
 
 
+class LoginPageBlocked(AuthenticationRequired):
+    """The login page needs a browser check; nothing was posted, so a browser session may still work."""
+
+
 def trusted_origin(target):
     try:
         return target.scheme == "https" and target.hostname == "qoj.ac" and target.port in (None, 443) and target.username is None and target.password is None
@@ -106,13 +110,22 @@ class QojClient:
         try:
             with self.opener.open(request, timeout=40) as response:
                 document = response.read().decode("utf-8")
-            require_no_access_check(document)
+            try:
+                require_no_access_check(document)
+            except AuthenticationRequired as check:
+                if data is None:
+                    raise LoginPageBlocked(str(check)) from None
+                raise
             return document
         except AuthenticationRequired:
             raise
         except HTTPError as error:
             error.close()
-            raise AuthenticationRequired(f"QOJ login returned HTTP {error.code}; stopping without retrying") from None
+            message = f"QOJ login returned HTTP {error.code}; stopping without retrying"
+            # QOJ answers its browser check with 403 before the form is served.
+            if data is None and error.code == 403:
+                raise LoginPageBlocked(message) from None
+            raise AuthenticationRequired(message) from None
         except (URLError, TimeoutError, OSError, ValueError, HTTPException):
             # Request and response exceptions can include passwords, hashes or cookies.
             raise AuthenticationRequired("QOJ login request failed or returned an invalid response; no retry was made") from None

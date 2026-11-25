@@ -438,12 +438,14 @@ For account-password login:
 
 Each online sync requests the normal QOJ login page, keeps its session and CSRF token in memory, and submits one login request using the same MD5 password transformation as QOJ's browser form. It then reuses the session for collection. Passwords, password hashes, CSRF tokens, and session cookies are never written to snapshots or logs. The session is not saved between runs. Account credentials take precedence over `QOJ_COOKIE`; a partially configured pair is an error, and rejected credentials do not trigger a fallback login attempt.
 
-For the existing cookie-only alternative, leave both account credentials unset:
+Since November 2026, QOJ serves a browser check instead of its login page to scripted requests (HTTP 403, or a check page). The synchronizer treats that as a stop: it posts nothing and does not attempt the check. Because no credentials were sent, it then uses `QOJ_COOKIE` when that secret is configured, and logs that it did. Without the secret, the error asks for one. Only this case falls back. Rejected credentials, a failure after the form was served, rate limiting, and redirects still stop the QOJ sync.
+
+For the cookie session, which is the only working method while the browser check is in place (account credentials may stay configured):
 
 1. Log in normally to [QOJ](https://qoj.ac/login) in your browser, open your submission list, and complete the site's required verification.
 2. Select that QOJ request in the browser developer tools' Network panel, find `Cookie` under Request Headers, and copy its **value**. Do not put it in chat, screenshots, source code, or documentation.
 3. Open **Settings → Secrets and variables → Actions → New repository secret** and store it as `QOJ_COOKIE`. For another username, add `QOJ_HANDLE` under Variables; the default is `Lucius7`.
-4. Dispatch **Daily sync and GitHub Pages** and inspect QOJ's `lastSuccess` and `error`. Daily runs then use the same secret; update it the same way when it expires.
+4. Dispatch **Daily sync and GitHub Pages** and inspect QOJ's `lastSuccess` and `error`. Daily runs then use the same secret; update it the same way when it expires. The error then reads `QOJ login expired`. Logging out of QOJ in that browser ends the session early.
 
 Logging into the browser does not automatically send the cookie to GitHub Actions. Credentials and cookies are sent only to `https://qoj.ac`. Cross-origin redirects and redirects from a login POST are rejected. Login requests are not retried. Two-factor authentication, access verification, incorrect credentials, 401 / 403, or 429 stop the current QOJ sync. Existing data is preserved with a warning; without a snapshot, an unconnected or error state is returned. Valid credentials do not guarantee that the site permits Actions requests. Complete normal verification when needed; do not bypass it.
 
@@ -459,7 +461,7 @@ curl --fail --silent --show-error --max-time 40 \
   --output nowcoder-practice.html
 ```
 
-Actual pagination uses `pageSize=10`, `search=`, `statusTypeFilter=-1`, `languageCategoryFilter=-1`, `orderType=DESC`, and `page=2` onward. The synchronizer keeps the default ten entries per page. The first check on 2026-09-08 showed 135 challenged problems, 113 solved problems, and 444 submissions across 45 pages, with four entries on the last page. Full history must match all three summary counts before publication.
+Actual pagination uses `pageSize=10`, `search=`, `statusTypeFilter=-1`, `languageFilter=-1`, `languageCategoryFilter=-1`, `languageKey=`, `orderType=DESC`, and `page=2` onward; the two `language…` parameters without `Category` appeared in the pager in November 2026. Every filter must keep this unfiltered default, and any other parameter or value pauses collection. The synchronizer keeps the default ten entries per page. The first check on 2026-09-08 showed 135 challenged problems, 113 solved problems, and 444 submissions across 45 pages, with four entries on the last page. Full history must match all three summary counts before publication.
 
 Run IDs, problem links, verdicts, and submission times map to submission IDs, `nowcoder:{problemId}`, acceptance, and `epoch`. Only the explicit upstream verdict `答案正确` (accepted) counts as AC; score 100 alone does not. Page times are precise to seconds with no timezone suffix and are interpreted as UTC+8. Submission time is used, not collection time. Repeat ACs remain separate events; first AC is the earliest retrieved record per problem.
 
@@ -543,6 +545,7 @@ The AtCoder / Codeforces client does not implement special `Retry-After` parsing
 | Nowcoder first sync fails without a cache, or offline without a cache | `needs_sync` when offline without a cache, `error` after a failed attempt, null time / count, excluded from statistics |
 | Nowcoder already collected today or paused | Reuse the successful snapshot and original time, preserve errors, and make no new requests |
 | Luogu disabled | No requests, snapshot reads, source state, problems, submissions, or freshness notices |
+| QOJ login page demands a browser check | Post nothing; use `QOJ_COOKIE` when configured, otherwise treat it as a failed sync |
 | QOJ cookie expires or a required page fails, with a cache | Preserve the entire history and old time, set `error`, and report degradation |
 | Previously nonempty submission history unexpectedly becomes empty | Reject replacement and treat it as a core sync failure |
 | AtCoder / Codeforces rating fails | Preserve the old rating and Profile `lastSuccess`, and add a warning; remain null if no old value exists |

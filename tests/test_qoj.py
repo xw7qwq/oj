@@ -216,6 +216,24 @@ class QojTests(unittest.TestCase):
                         qoj.QojClient.from_credentials('fixture-user', 'fixture-password')
                 self.assertEqual(len(handler.requests), 1)
 
+    def test_only_a_blocked_login_page_is_reported_as_a_browser_check(self):
+        def failure(replies):
+            handler = ScriptedHTTPS(replies)
+            with patch.object(qoj, 'build_opener', side_effect=lambda *handlers: build_opener(handler, *handlers)), patch.object(qoj.time, 'sleep'):
+                with self.assertRaises(qoj.AuthenticationRequired) as error:
+                    qoj.QojClient.from_credentials('fixture-user', 'fixture-password')
+            return error.exception, handler
+        # The form never arrived, so nothing was posted and a browser session is worth trying.
+        for replies in ([login_response('Just a moment...', 403)], [login_response(LOGIN_PAGE + 'cf-turnstile')]):
+            error, handler = failure(replies)
+            self.assertIsInstance(error, qoj.LoginPageBlocked)
+            self.assertEqual([request.get_method() for request in handler.requests], ['GET'])
+        # Anything after the form was served, and any other refusal of the page, stays a plain failure.
+        for replies in ([login_response(), login_response('Just a moment...', 403)], [login_response(), login_response('failed')],
+                        [login_response('', 429)], [login_response('', 302, Location='https://example.com/login')]):
+            error, _ = failure(replies)
+            self.assertNotIsInstance(error, qoj.LoginPageBlocked)
+
     def test_login_post_redirects_never_forward_credentials(self):
         for status in (301, 302, 303, 307, 308):
             for destination in ('https://qoj.ac/', 'https://qoj.ac/login/2fa', 'https://example.com/login', 'http://qoj.ac/login'):
