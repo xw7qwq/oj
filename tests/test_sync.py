@@ -32,6 +32,32 @@ class SyncTests(unittest.TestCase):
             client.assert_not_called()
             collect.assert_called_once_with(client.from_credentials.return_value, sync.QOJ_HANDLE, None)
 
+    def test_qoj_browser_check_on_the_login_page_falls_back_to_the_cookie_session(self):
+        blocked = sync.LoginPageBlocked("QOJ login returned HTTP 403; stopping without retrying")
+        environment = {"QOJ_USERNAME": "login-account", "QOJ_PASSWORD": "test-password", "QOJ_COOKIE": "session=browser"}
+        with patch.dict(os.environ, environment, clear=True), patch.object(sync, "QojClient") as client, patch.object(sync, "collect_qoj_records", return_value={}) as collect, patch.object(sync, "make_snapshot"):
+            client.from_credentials.side_effect = blocked
+            sync.collect_qoj(None, None)
+            client.from_credentials.assert_called_once_with("login-account", "test-password")
+            client.assert_called_once_with("session=browser")
+            collect.assert_called_once_with(client.return_value, sync.QOJ_HANDLE, None)
+        del environment["QOJ_COOKIE"]
+        with patch.dict(os.environ, environment, clear=True), patch.object(sync, "QojClient") as client, patch.object(sync, "collect_qoj_records") as collect:
+            client.from_credentials.side_effect = blocked
+            with self.assertRaisesRegex(sync.AuthenticationRequired, "HTTP 403.*configure QOJ_COOKIE"):
+                sync.collect_qoj(None, None)
+            client.assert_not_called()
+            collect.assert_not_called()
+
+    def test_qoj_rejected_credentials_never_fall_back_to_the_cookie_session(self):
+        environment = {"QOJ_USERNAME": "login-account", "QOJ_PASSWORD": "test-password", "QOJ_COOKIE": "session=browser"}
+        with patch.dict(os.environ, environment, clear=True), patch.object(sync, "QojClient") as client, patch.object(sync, "collect_qoj_records") as collect:
+            client.from_credentials.side_effect = sync.AuthenticationRequired("QOJ rejected the username or password")
+            with self.assertRaisesRegex(sync.AuthenticationRequired, "rejected"):
+                sync.collect_qoj(None, None)
+            client.assert_not_called()
+            collect.assert_not_called()
+
     def test_qoj_cookie_mode_remains_available(self):
         with patch.dict(os.environ, {"QOJ_COOKIE": "session=test"}, clear=True), patch.object(sync, "QojClient") as client, patch.object(sync, "collect_qoj_records", return_value={}), patch.object(sync, "make_snapshot"):
             sync.collect_qoj(None, None)
