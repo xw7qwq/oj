@@ -32,7 +32,7 @@ def page(rows, number=1):
     pages = max(1, math.ceil(len(rows)/10))
     pager = ''
     if pages > 1:
-        next_link = f'<li class="js-next-pager"><a href="?pageSize=10&search=&statusTypeFilter=-1&languageCategoryFilter=-1&orderType=DESC&page={number+1}">下一页</a></li>' if number < pages else ''
+        next_link = f'<li class="js-next-pager"><a href="?&pageSize=10&search=&statusTypeFilter=-1&languageFilter=-1&languageCategoryFilter=-1&languageKey=&orderType=DESC&page={number+1}">下一页</a></li>' if number < pages else ''
         pager = f'<div class="pagination"><ul data-total="{pages}"><li class="active"><a data-page="{number}">{number}</a></li>{next_link}</ul></div>'
     return f'''<html><script>window.curUser.id = "423062492";</script><a class="coder-name">theLucius7</a>
     <div class="status-item"><div><a class="state-num">1840</a></div><span>Rating</span></div>{counters}
@@ -147,8 +147,20 @@ class NowcoderTests(unittest.TestCase):
         with self.assertRaises(nowcoder.AccessStopped): client.get(nowcoder.HISTORY_URL)
         self.assertEqual(client.opener.open.call_count,1)
         with self.assertRaises(nowcoder.AccessStopped): nowcoder.NoRedirect().redirect_request(None,None,302,'',{},nowcoder.PROFILE_URL)
-        for url in [nowcoder.PROFILE_URL, 'https://example.com/', nowcoder.HISTORY_URL+'?pageSize=100', nowcoder.HISTORY_URL+'?statusTypeFilter=5']:
+        for url in [nowcoder.PROFILE_URL, 'https://example.com/', nowcoder.HISTORY_URL+'?pageSize=100', nowcoder.HISTORY_URL+'?statusTypeFilter=5',
+                    nowcoder.HISTORY_URL+'?languageFilter=2', nowcoder.HISTORY_URL+'?languageKey=cpp', nowcoder.HISTORY_URL+'?unknownFilter=-1']:
             with self.assertRaises(ValueError): nowcoder.history_target(url)
+
+    def test_pagination_accepts_only_the_unfiltered_links_the_page_renders(self):
+        # 2026-09: five parameters. 2026-11: the pager added languageFilter and languageKey.
+        legacy = '?pageSize=10&search=&statusTypeFilter=-1&languageCategoryFilter=-1&orderType=DESC&page=2'
+        current = '?&pageSize=10&search=&statusTypeFilter=-1&languageFilter=-1&languageCategoryFilter=-1&languageKey=&orderType=DESC&page=2'
+        for query in (legacy, current):
+            nowcoder.history_target(nowcoder.HISTORY_URL + query, 2)
+        document = page(records(12))
+        self.assertEqual(nowcoder.parse_page(document, 1)['next'], nowcoder.HISTORY_URL + current)
+        for changed in (document.replace('languageFilter=-1', 'languageFilter=2'), document.replace('languageKey=&', 'languageKey=cpp&')):
+            with self.assertRaises(ValueError): nowcoder.parse_page(changed, 1)
 
     def test_daily_state_reuses_success_and_pause_survives_future_days(self):
         previous=snapshot();payload=nowcoder.collect(FakeClient(records(12)))

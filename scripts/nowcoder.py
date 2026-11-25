@@ -44,8 +44,10 @@ def history_target(url, page=None):
             or parsed.path != urlparse(HISTORY_URL).path or parsed.fragment):
         raise ValueError("Unexpected Nowcoder history URL")
     query = parse_qs(parsed.query, keep_blank_values=True)
+    # Every filter must keep its unfiltered default; a filtered view would hide history.
     allowed = {"pageSize": ["10"], "search": [""], "statusTypeFilter": ["-1"],
-               "languageCategoryFilter": ["-1"], "orderType": ["DESC"]}
+               "languageFilter": ["-1"], "languageCategoryFilter": ["-1"], "languageKey": [""],
+               "orderType": ["DESC"]}
     for key, value in query.items():
         if key == "page":
             if len(value) != 1 or not re.fullmatch(r"[1-9][0-9]*", value[0]):

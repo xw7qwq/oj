@@ -459,7 +459,7 @@ curl --fail --silent --show-error --max-time 40 \
   --output nowcoder-practice.html
 ```
 
-Actual pagination uses `pageSize=10`, `search=`, `statusTypeFilter=-1`, `languageCategoryFilter=-1`, `orderType=DESC`, and `page=2` onward. The synchronizer keeps the default ten entries per page. The first check on 2026-09-08 showed 135 challenged problems, 113 solved problems, and 444 submissions across 45 pages, with four entries on the last page. Full history must match all three summary counts before publication.
+Actual pagination uses `pageSize=10`, `search=`, `statusTypeFilter=-1`, `languageFilter=-1`, `languageCategoryFilter=-1`, `languageKey=`, `orderType=DESC`, and `page=2` onward; the two `language…` parameters without `Category` appeared in the pager in November 2026. Every filter must keep this unfiltered default, and any other parameter or value pauses collection. The synchronizer keeps the default ten entries per page. The first check on 2026-09-08 showed 135 challenged problems, 113 solved problems, and 444 submissions across 45 pages, with four entries on the last page. Full history must match all three summary counts before publication.
 
 Run IDs, problem links, verdicts, and submission times map to submission IDs, `nowcoder:{problemId}`, acceptance, and `epoch`. Only the explicit upstream verdict `答案正确` (accepted) counts as AC; score 100 alone does not. Page times are precise to seconds with no timezone suffix and are interpreted as UTC+8. Submission time is used, not collection time. Repeat ACs remain separate events; first AC is the earliest retrieved record per problem.
 
