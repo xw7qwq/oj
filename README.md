@@ -117,6 +117,35 @@ The panel uses each platform's `lastSuccess` to assess freshness and warns after
 
 Nowcoder request budgets and pause state are stored in `data/sources/nowcoder-request.json`. See [Nowcoder data](docs/API.md#nowcoder-public-coding-practice-submissions) when investigating collection coverage, budgets, or pause reasons. Formats and commands for importing saved browser data are in the [manual import guide](docs/API.md#manually-importing-saved-browser-data). Importing or changing historical Luogu state does not re-enable its public integration.
 
+### Notion mirror
+
+Optional. After each sync, the [Notion mirror workflow](.github/workflows/notion.yml) copies the solved problems into a Notion database, one row per problem. The published JSON remains the source; Notion holds a second copy that is convenient for notes, tags, and views of your own.
+
+| Setting | GitHub Actions location | Description |
+| --- | --- | --- |
+| `NOTION_TOKEN` | Repository secret | Secret of an internal Notion integration that can read, update, and insert content |
+| `NOTION_DATABASE_ID` | Repository variable | The database to mirror into. Without it the workflow does nothing |
+
+To set it up:
+
+1. Create an internal integration at [notion.so/profile/integrations](https://www.notion.so/profile/integrations) and store its secret as `NOTION_TOKEN`.
+2. In Notion, open the page that should hold the database and add the integration under **⋯ → Connections**.
+3. Run **Notion mirror** from Actions with the page in `create_under`: its link, or just the 32-character ID at the end of the link, since the value is shown in the run log. The run creates the database 做题记录, fills it, and prints its ID. About 1,400 rows take ten to fifteen minutes, because Notion allows one integration 180 requests a minute.
+4. Store that ID as `NOTION_DATABASE_ID`. From then on the mirror runs after every sync and takes seconds.
+
+What the mirror writes:
+
+| Columns | Rule |
+| --- | --- |
+| 题目, 平台, 比赛, 题号, 难度, 首次 AC, 题目链接, 提交, 代码, 同步 ID | Synced. A collected value replaces what the cell holds. A value the collection does not have is never written, so a cell it leaves empty (the difficulty of a Nowcoder problem, a code link) can be filled in by hand |
+| 标签, 笔记, and any column you add | Yours. Never written |
+
+- Rows without a 同步 ID are yours too: add problems from other sites by hand and the mirror leaves them alone.
+- The mirror never deletes. A synced row moved to the trash is created again by the next run, and a row whose problem left the collected history stays.
+- 首次 AC is the first accepted submission in UTC+8. 代码 links the file in [solutions](https://github.com/xw7qwq/solutions) when exactly one file there names the problem (AtCoder and Codeforces).
+- Renaming or retyping a synced column stops the run with an error that names the column, before anything is written. The database itself can be renamed, moved, and given any views; keep it shared with the integration, and keep it to one data source: the mirror addresses the database with Notion API version `2022-06-28`, which stops answering for a database that has a second one.
+- A failed mirror does not affect the published data: it is a separate workflow that reads the `data/snapshots` branch. Run it with `dry_run` to see what it would change.
+
 ## Public API
 
 The production endpoint is an unauthenticated static `GET`:
@@ -196,6 +225,7 @@ You can also publish the `dist/` output from `npm run build` to another static h
 ```text
 .github/workflows/
   pages.yml              # main source + scheduled data/snapshots sync and Pages deployment
+  notion.yml             # Optional mirror of solved problems into a Notion database after each sync
   check.yml              # Pull request tests and build
 data/sources/            # Successful platform snapshots and request state; internal cache
 docs/
@@ -213,6 +243,8 @@ scripts/
   import_browser.py      # Offline import entry point for saved browser data
   qoj_import.py          # QOJ offline data normalization
   luogu.py               # Historical Luogu adapter, currently disabled
+  notion_sync.py         # Solved problems as rows of a Notion database
+  notion.py              # Notion API client: pacing, retries, and errors without the token
   model.mjs              # Dates, first ACs, and streaks for summary.json
   summary.mjs            # Compact statistics for the panel
   build.mjs              # Data validation and build
