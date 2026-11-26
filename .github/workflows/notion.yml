@@ -1,0 +1,62 @@
+name: Notion mirror
+
+on:
+  workflow_run:
+    # After every sync, whatever its result: the data branch keeps the last good records.
+    # This must stay the name of the workflow in pages.yml.
+    workflows: ['Daily sync and GitHub Pages']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      create_under:
+        description: 'First setup only: link or ID of the Notion page to create the database under'
+        required: false
+        type: string
+      dry_run:
+        description: 'Report what would change without writing to Notion'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  # One mirror at a time, so two runs never create the same row.
+  group: notion
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    # Optional: without a database there is nothing to do, in forks as well.
+    if: vars.NOTION_DATABASE_ID != '' || inputs.create_under != ''
+    runs-on: ubuntu-latest
+    # The first import writes one row per solved problem at Notion's pace; later runs take seconds.
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Check out the latest records
+        uses: actions/checkout@v6
+        with:
+          ref: data/snapshots
+          path: .snapshots
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Mirror solved problems to Notion
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ vars.NOTION_DATABASE_ID }}
+          CREATE_UNDER: ${{ inputs.create_under }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          arguments=(--dashboard .snapshots/public/data/dashboard.json)
+          if [ -n "$CREATE_UNDER" ]; then arguments+=(--create-database "$CREATE_UNDER"); fi
+          if [ "$DRY_RUN" = 'true' ]; then arguments+=(--dry-run); fi
+          python3 scripts/notion_sync.py "${arguments[@]}"
